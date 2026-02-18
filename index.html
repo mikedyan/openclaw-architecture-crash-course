@@ -1,0 +1,1946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenClaw Architecture — Interactive Crash Course</title>
+<style>
+:root {
+  --bg: #060a12;
+  --bg2: #0c1220;
+  --bg3: #141e30;
+  --border: #1e2d45;
+  --text: #d8e0ef;
+  --dim: #5a6b82;
+  --green: #00e87b;
+  --violet: #8b5cf6;
+  --blue: #38bdf8;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --gold: #fbbf24;
+  --glass: rgba(255,255,255,0.03);
+  --glass-border: rgba(255,255,255,0.06);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; height: 100vh; }
+.mono { font-family: 'SF Mono','Fira Code','Consolas', monospace; }
+
+/* === NAV === */
+.nav { position:fixed; top:0; left:0; right:0; height:50px; background:rgba(6,10,18,0.92); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 20px; z-index:100; }
+.nav-title { font-size:13px; color:var(--dim); }
+.nav-title strong { color:var(--green); }
+.nav-dots { display:flex; gap:4px; flex-wrap:wrap; max-width:300px; justify-content:center; }
+.nav-dot { width:7px; height:7px; border-radius:50%; background:var(--bg3); border:1px solid var(--border); cursor:pointer; transition:all .3s; }
+.nav-dot.active { background:var(--green); border-color:var(--green); transform:scale(1.4); box-shadow:0 0 8px rgba(0,232,123,.4); }
+.nav-dot.visited { background:var(--violet); border-color:var(--violet); }
+.nav-btns { display:flex; gap:6px; }
+.nav-btn { padding:5px 14px; border-radius:6px; border:1px solid var(--border); background:var(--bg3); color:var(--text); cursor:pointer; font-size:12px; transition:all .2s; }
+.nav-btn:hover { border-color:var(--green); }
+.nav-btn.primary { background:var(--green); color:#000; border-color:var(--green); font-weight:600; }
+.nav-btn:disabled { opacity:.3; cursor:not-allowed; }
+
+/* === PROGRESS === */
+.progress-bar { position:fixed; top:50px; left:0; right:0; height:2px; background:var(--bg3); z-index:99; }
+.progress-fill { height:100%; background:linear-gradient(90deg, var(--green), var(--violet)); transition:width .5s; width:0; }
+
+/* === SCORE === */
+.score-display { position:fixed; bottom:16px; right:16px; background:rgba(12,18,32,0.9); backdrop-filter:blur(12px); border:1px solid var(--border); border-radius:10px; padding:8px 14px; font-size:12px; color:var(--dim); z-index:100; }
+.score-display span { color:var(--gold); font-weight:600; }
+
+/* === KEYS === */
+.keys-hint { position:fixed; bottom:16px; left:16px; font-size:11px; color:var(--dim); z-index:100; }
+kbd { background:var(--bg3); border:1px solid var(--border); border-radius:3px; padding:1px 5px; font-size:10px; }
+
+/* === SLIDES === */
+.slide-wrap { margin-top:50px; height:calc(100vh - 50px); overflow-y:auto; }
+.slide { display:none; min-height:calc(100vh - 52px); padding:40px 48px; max-width:1000px; margin:0 auto; animation:fadeIn .4s ease; }
+.slide.active { display:block; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+/* === TYPOGRAPHY === */
+h1 { font-size:42px; background:linear-gradient(135deg,var(--green),var(--violet)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:8px; font-weight:800; }
+h2 { font-size:26px; color:var(--green); margin-bottom:14px; }
+h3 { font-size:18px; margin:20px 0 10px; }
+p { font-size:15px; line-height:1.7; margin-bottom:12px; }
+.sub { font-size:16px; color:var(--dim); margin-bottom:28px; }
+strong, .accent { color:var(--green); }
+.violet { color:var(--violet); }
+.blue { color:var(--blue); }
+.gold { color:var(--gold); }
+.amber { color:var(--amber); }
+.red { color:var(--red); }
+code { background:var(--bg3); padding:2px 6px; border-radius:4px; font-family:'SF Mono','Fira Code',monospace; font-size:13px; }
+
+/* === GLASS CARDS === */
+.glass { background:var(--glass); border:1px solid var(--glass-border); border-radius:12px; backdrop-filter:blur(12px); padding:20px; margin:16px 0; }
+
+/* === INSIGHT BOX === */
+.insight { background:rgba(0,232,123,.04); border:1px solid rgba(0,232,123,.12); border-radius:10px; padding:16px; margin:16px 0; }
+.insight-label { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--green); margin-bottom:6px; font-weight:600; }
+
+/* === TERMINAL === */
+.term { background:#000; border-radius:10px; overflow:hidden; border:1px solid var(--border); margin:16px 0; }
+.term-bar { background:var(--bg3); padding:6px 12px; display:flex; gap:6px; align-items:center; }
+.term-dot { width:10px; height:10px; border-radius:50%; }
+.term-dot.r { background:#ff5f57; } .term-dot.y { background:#febc2e; } .term-dot.g { background:#28c840; }
+.term-body { padding:14px 18px; font-family:'SF Mono','Fira Code',monospace; font-size:13px; min-height:60px; max-height:400px; overflow-y:auto; line-height:1.6; }
+.term-prompt { color:var(--green); }
+.term-cmd { color:#fff; }
+.term-out { color:var(--dim); }
+.term-ok { color:var(--green); }
+.term-err { color:var(--red); }
+.term-hl { color:var(--gold); }
+.term-input { background:transparent; border:none; color:#fff; font-family:inherit; font-size:inherit; outline:none; caret-color:var(--green); width:calc(100% - 30px); }
+
+/* === TITLE SLIDE === */
+.title-wrap { display:flex; flex-direction:column; justify-content:center; align-items:center; min-height:calc(100vh - 100px); text-align:center; position:relative; }
+.title-particles { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+.title-particle { position:absolute; border-radius:50%; opacity:0; animation:particleFloat linear infinite; }
+@keyframes particleFloat { 0%{opacity:0;transform:translateY(0) scale(0)} 10%{opacity:.7} 90%{opacity:.3} 100%{opacity:0;transform:translateY(-90vh) scale(1.2)} }
+.title-h1 { font-size:56px; font-weight:900; background:linear-gradient(135deg,var(--green) 0%,var(--blue) 40%,var(--violet) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; animation:titleGlow 4s ease-in-out infinite alternate; position:relative; z-index:2; }
+@keyframes titleGlow { 0%{filter:brightness(1)} 100%{filter:brightness(1.2)} }
+.title-sub { font-size:20px; color:var(--dim); margin-top:12px; z-index:2; position:relative; }
+.title-badges { display:flex; gap:12px; margin-top:32px; flex-wrap:wrap; justify-content:center; z-index:2; position:relative; }
+.title-badge { padding:8px 16px; border-radius:8px; border:1px solid var(--border); background:rgba(12,18,32,0.8); font-size:12px; color:var(--dim); backdrop-filter:blur(8px); }
+.title-badge strong { color:var(--green); }
+.title-start { margin-top:36px; padding:14px 36px; border-radius:10px; border:none; background:linear-gradient(135deg,var(--green),var(--violet)); color:#000; font-size:16px; font-weight:700; cursor:pointer; z-index:2; position:relative; transition:transform .2s, box-shadow .2s; }
+.title-start:hover { transform:scale(1.05); box-shadow:0 0 30px rgba(0,232,123,.3); }
+
+/* === DEPTH SLIDER === */
+.depth-wrap { margin:20px 0; }
+.depth-slider { width:100%; -webkit-appearance:none; height:6px; border-radius:3px; background:var(--bg3); outline:none; }
+.depth-slider::-webkit-slider-thumb { -webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:var(--green); cursor:pointer; box-shadow:0 0 12px var(--green); }
+.depth-label { font-size:12px; color:var(--dim); text-align:center; margin-top:6px; }
+.depth-view { min-height:280px; position:relative; border-radius:12px; border:1px solid var(--border); background:var(--bg2); padding:24px; margin:16px 0; overflow:hidden; }
+.depth-layer { transition:all .5s cubic-bezier(.16,1,.3,1); position:relative; margin:8px 0; padding:14px 18px; border-radius:8px; border:1px solid transparent; }
+.depth-layer.visible { opacity:1; transform:translateY(0); }
+.depth-layer.hidden { opacity:0; transform:translateY(20px); pointer-events:none; position:absolute; }
+
+/* === MESSAGE TRACE === */
+.trace-canvas { position:relative; height:200px; margin:20px 0; background:var(--bg2); border-radius:12px; border:1px solid var(--border); overflow:hidden; }
+.trace-node { position:absolute; padding:10px 16px; border-radius:8px; font-size:12px; font-weight:600; text-align:center; border:2px solid var(--border); background:var(--bg); transition:border-color .3s, box-shadow .3s; z-index:2; }
+.trace-node.lit { border-color:var(--green); box-shadow:0 0 20px rgba(0,232,123,.25); }
+.trace-particle { position:absolute; width:12px; height:12px; border-radius:50%; background:var(--green); box-shadow:0 0 15px var(--green); z-index:3; transition:all .6s ease; display:none; }
+.trace-inspector { display:none; margin:12px 0; }
+.trace-inspector.show { display:block; }
+
+/* === FRAME INSPECTOR === */
+.inspector-wrap { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:16px 0; min-height:340px; }
+.frame-log { background:#000; border-radius:10px; border:1px solid var(--border); padding:12px; overflow-y:auto; max-height:340px; font-family:'SF Mono',monospace; font-size:12px; }
+.frame-entry { padding:6px 8px; border-radius:4px; cursor:pointer; margin:2px 0; transition:background .2s; display:flex; gap:8px; align-items:center; }
+.frame-entry:hover { background:rgba(255,255,255,.05); }
+.frame-entry.selected { background:rgba(0,232,123,.08); border-left:2px solid var(--green); }
+.frame-badge { padding:2px 6px; border-radius:3px; font-size:10px; font-weight:600; text-transform:uppercase; }
+.frame-badge.auth { background:rgba(245,158,11,.12); color:var(--amber); }
+.frame-badge.chat { background:rgba(0,232,123,.12); color:var(--green); }
+.frame-badge.tool { background:rgba(139,92,246,.12); color:var(--violet); }
+.frame-badge.sys { background:rgba(90,107,130,.15); color:var(--dim); }
+.frame-badge.err { background:rgba(239,68,68,.12); color:var(--red); }
+.frame-detail { background:var(--bg2); border-radius:10px; border:1px solid var(--border); padding:16px; overflow-y:auto; max-height:340px; }
+.filter-btns { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
+.filter-btn { padding:4px 10px; border-radius:5px; border:1px solid var(--border); background:var(--bg3); color:var(--dim); cursor:pointer; font-size:11px; transition:all .2s; }
+.filter-btn.active { border-color:var(--green); color:var(--green); background:rgba(0,232,123,.06); }
+.filter-btn.corrupt { border-color:var(--red); color:var(--red); }
+
+/* === DRAG AND DROP === */
+.drag-area { display:flex; gap:16px; margin:16px 0; min-height:300px; }
+.drag-col { flex:1; background:var(--bg2); border-radius:10px; border:1px solid var(--border); padding:12px; }
+.drag-col h4 { font-size:12px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
+.drag-item { padding:10px 14px; border-radius:8px; border:1px solid var(--border); background:var(--bg); margin:6px 0; cursor:grab; font-size:13px; transition:all .2s; user-select:none; }
+.drag-item:active { cursor:grabbing; }
+.drag-item.dragging { opacity:.4; }
+.drag-item.correct { border-color:var(--green); background:rgba(0,232,123,.06); }
+.drag-item.wrong { border-color:var(--red); background:rgba(239,68,68,.06); animation:shake .4s; }
+@keyframes shake { 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
+.drop-zone { min-height:50px; border:2px dashed var(--border); border-radius:8px; padding:8px; transition:all .2s; }
+.drop-zone.over { border-color:var(--green); background:rgba(0,232,123,.04); }
+.channel-icon { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+
+/* === AUTH DOORS === */
+.auth-doors { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin:16px 0; }
+.auth-door { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:16px 12px; text-align:center; transition:all .3s; min-height:200px; display:flex; flex-direction:column; justify-content:space-between; }
+.auth-door.solved { border-color:var(--green); background:rgba(0,232,123,.04); }
+.auth-door h4 { font-size:13px; margin-bottom:8px; }
+.auth-door .lock { font-size:28px; margin:8px 0; }
+.auth-door.solved .lock { color:var(--green); }
+.auth-input { background:var(--bg); border:1px solid var(--border); border-radius:5px; padding:6px 8px; color:var(--text); font-family:'SF Mono',monospace; font-size:11px; width:100%; margin:4px 0; outline:none; }
+.auth-input:focus { border-color:var(--green); }
+.auth-opt { display:block; padding:5px 8px; margin:3px 0; border-radius:4px; border:1px solid var(--border); background:var(--bg); cursor:pointer; font-size:11px; transition:all .2s; text-align:left; }
+.auth-opt:hover { border-color:var(--green); }
+.auth-opt.correct { border-color:var(--green); background:rgba(0,232,123,.08); }
+.auth-opt.wrong { border-color:var(--red); background:rgba(239,68,68,.08); }
+
+/* === DEBUGGER === */
+.debugger { background:var(--bg2); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin:16px 0; }
+.debug-toolbar { background:var(--bg3); padding:8px 16px; display:flex; gap:8px; align-items:center; border-bottom:1px solid var(--border); }
+.debug-btn { padding:4px 12px; border-radius:5px; border:1px solid var(--border); background:var(--bg); color:var(--text); cursor:pointer; font-size:12px; transition:all .2s; }
+.debug-btn:hover:not(:disabled) { border-color:var(--green); color:var(--green); }
+.debug-btn:disabled { opacity:.3; cursor:not-allowed; }
+.debug-btn.active { background:var(--green); color:#000; border-color:var(--green); }
+.debug-steps { padding:16px; }
+.debug-step { padding:10px 14px; border-radius:6px; margin:4px 0; border-left:3px solid var(--border); font-size:13px; cursor:pointer; transition:all .2s; }
+.debug-step.current { border-left-color:var(--green); background:rgba(0,232,123,.04); }
+.debug-step.done { border-left-color:var(--violet); color:var(--dim); }
+.debug-step.bp { position:relative; }
+.debug-step.bp::before { content:''; position:absolute; left:-8px; top:50%; transform:translateY(-50%); width:10px; height:10px; border-radius:50%; background:var(--red); }
+.debug-data { padding:16px; border-top:1px solid var(--border); background:var(--bg); font-family:'SF Mono',monospace; font-size:12px; max-height:200px; overflow-y:auto; white-space:pre-wrap; color:var(--dim); }
+
+/* === FILE TREE === */
+.ftree { font-family:'SF Mono',monospace; font-size:13px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px 16px; line-height:1.8; }
+.ftree-item { cursor:pointer; padding:2px 4px; border-radius:3px; transition:background .2s; }
+.ftree-item:hover { background:rgba(0,232,123,.05); }
+.ftree-folder { color:var(--green); }
+.ftree-file { color:var(--text); }
+.ftree-viewer { background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:16px; margin-top:12px; font-family:'SF Mono',monospace; font-size:12px; max-height:300px; overflow-y:auto; white-space:pre-wrap; line-height:1.6; display:none; }
+.ftree-viewer.show { display:block; }
+
+/* === API EXPLORER === */
+.api-search { width:100%; padding:10px 16px; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:14px; outline:none; margin-bottom:12px; }
+.api-search:focus { border-color:var(--green); }
+.api-cats { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
+.api-cat { padding:4px 10px; border-radius:5px; border:1px solid var(--border); background:var(--bg3); color:var(--dim); cursor:pointer; font-size:11px; transition:all .2s; }
+.api-cat.active { border-color:var(--green); color:var(--green); background:rgba(0,232,123,.06); }
+.api-list { max-height:400px; overflow-y:auto; }
+.api-card { background:var(--bg2); border:1px solid var(--border); border-radius:8px; margin:6px 0; overflow:hidden; transition:all .2s; }
+.api-card-head { padding:10px 14px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; font-size:13px; }
+.api-card-head:hover { background:rgba(0,232,123,.03); }
+.api-card-body { display:none; padding:12px 14px; border-top:1px solid var(--border); font-size:12px; }
+.api-card.open .api-card-body { display:block; }
+
+/* === NORMALIZER === */
+.norm-tabs { display:flex; gap:4px; margin-bottom:12px; }
+.norm-tab { padding:6px 14px; border-radius:6px 6px 0 0; border:1px solid var(--border); border-bottom:none; background:var(--bg3); color:var(--dim); cursor:pointer; font-size:12px; }
+.norm-tab.active { background:var(--bg2); color:var(--green); border-color:var(--green); }
+.norm-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.norm-raw { background:#000; border-radius:8px; border:1px solid var(--border); padding:12px; font-family:'SF Mono',monospace; font-size:11px; max-height:320px; overflow-y:auto; }
+.norm-field { padding:5px 8px; margin:2px; border-radius:4px; border:1px solid var(--border); background:var(--bg); cursor:grab; font-size:11px; display:inline-block; transition:all .2s; }
+.norm-field:active { cursor:grabbing; }
+.norm-field.placed { opacity:.4; cursor:default; }
+.norm-slots { background:var(--bg2); border-radius:8px; border:1px solid var(--border); padding:12px; }
+.norm-slot { min-height:30px; border:2px dashed var(--border); border-radius:4px; padding:4px 8px; margin:5px 0; font-size:11px; transition:all .2s; display:flex; align-items:center; gap:8px; }
+.norm-slot.over { border-color:var(--green); background:rgba(0,232,123,.04); }
+.norm-slot.filled { border-style:solid; border-color:var(--green); }
+.norm-slot-label { color:var(--dim); min-width:70px; font-size:10px; }
+
+/* === TOOL WORKBENCH === */
+.wb-tabs { display:flex; gap:4px; }
+.wb-tab { padding:6px 14px; border-radius:6px 6px 0 0; border:1px solid var(--border); border-bottom:none; background:var(--bg3); color:var(--dim); cursor:pointer; font-size:12px; }
+.wb-tab.active { background:var(--bg2); color:var(--green); border-color:var(--green); }
+.wb-panel { display:none; background:var(--bg2); border:1px solid var(--border); border-radius:0 8px 8px 8px; min-height:250px; }
+.wb-panel.active { display:flex; flex-direction:column; }
+.wb-body { flex:1; padding:12px; overflow-y:auto; font-family:'SF Mono',monospace; font-size:12px; max-height:200px; }
+.wb-input { display:flex; border-top:1px solid var(--border); }
+.wb-input input { flex:1; background:transparent; border:none; padding:8px 12px; color:var(--text); font-family:'SF Mono',monospace; font-size:12px; outline:none; }
+.wb-counter { display:flex; gap:16px; margin-top:8px; font-size:12px; color:var(--dim); }
+.wb-counter span { color:var(--gold); }
+
+/* === MULTI-AGENT === */
+.ma-canvas { position:relative; height:280px; background:var(--bg2); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin:12px 0; }
+.ma-node { position:absolute; padding:8px 12px; border-radius:8px; border:2px solid var(--border); background:var(--bg); font-size:11px; text-align:center; cursor:pointer; transition:all .3s; z-index:2; min-width:90px; }
+.ma-node:hover { border-color:var(--green); }
+.ma-node.active { border-color:var(--green); box-shadow:0 0 20px rgba(0,232,123,.2); }
+.ma-node .ma-model { font-size:9px; color:var(--dim); margin-top:2px; }
+.ma-scenarios { display:flex; gap:8px; margin-bottom:12px; }
+
+/* === CHAOS CONSOLE === */
+.chaos-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:16px 0; }
+.chaos-toggles { display:flex; flex-direction:column; gap:8px; }
+.chaos-toggle { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:var(--bg2); border:1px solid var(--border); border-radius:8px; font-size:13px; }
+.chaos-switch { position:relative; width:40px; height:22px; border-radius:11px; background:var(--bg3); border:1px solid var(--border); cursor:pointer; transition:all .3s; }
+.chaos-switch.on { background:var(--red); border-color:var(--red); }
+.chaos-switch::after { content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; transition:all .3s; }
+.chaos-switch.on::after { left:20px; }
+.chaos-log { background:#000; border-radius:10px; border:1px solid var(--border); padding:12px; font-family:'SF Mono',monospace; font-size:11px; max-height:280px; overflow-y:auto; }
+
+/* === NETWORK TOPO === */
+.topo-canvas { position:relative; height:260px; background:var(--bg2); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin:16px 0; }
+.topo-node { position:absolute; padding:6px 10px; border-radius:6px; border:1px solid var(--border); background:var(--bg); font-size:10px; text-align:center; transition:all .3s; z-index:2; }
+.topo-node.lit { border-color:var(--green); box-shadow:0 0 15px rgba(0,232,123,.25); }
+
+/* === WATERFALL === */
+.wf-row { display:flex; align-items:center; margin:4px 0; cursor:pointer; }
+.wf-label { width:130px; font-size:11px; color:var(--dim); text-align:right; padding-right:10px; flex-shrink:0; }
+.wf-track { flex:1; height:22px; background:var(--bg2); border-radius:4px; position:relative; overflow:hidden; }
+.wf-bar { height:100%; border-radius:4px; position:absolute; transition:all .5s; display:flex; align-items:center; padding-left:6px; font-size:9px; color:#000; font-weight:600; }
+.wf-detail { display:none; margin:4px 0 4px 140px; padding:8px; background:var(--bg2); border:1px solid var(--border); border-radius:6px; font-size:11px; }
+.wf-detail.show { display:block; }
+
+/* === PROVIDER COMPARE === */
+.prov-compare { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:16px 0; }
+.prov-panel { background:var(--bg2); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+.prov-header { padding:8px 14px; background:var(--bg3); border-bottom:1px solid var(--border); font-size:12px; font-weight:600; display:flex; justify-content:space-between; }
+.prov-body { padding:12px; font-size:12px; min-height:100px; }
+.prov-stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; padding:8px 14px; border-top:1px solid var(--border); font-size:11px; text-align:center; }
+.prov-stat-val { font-size:15px; font-weight:600; }
+
+/* === DOCKER LAYERS === */
+.docker-area { display:flex; gap:16px; margin:16px 0; min-height:280px; }
+.docker-source,.docker-target { flex:1; }
+.docker-target { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:12px; }
+.docker-layer { padding:8px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg); margin:5px 0; cursor:grab; font-size:11px; font-family:'SF Mono',monospace; transition:all .2s; }
+.docker-layer:active { cursor:grabbing; }
+.docker-layer.placed { opacity:.4; }
+.docker-layer.correct { border-color:var(--green); }
+.docker-layer.wrong { border-color:var(--red); animation:shake .4s; }
+.docker-slot { min-height:36px; border:2px dashed var(--border); border-radius:6px; margin:5px 0; transition:all .2s; display:flex; align-items:center; padding:0 10px; font-size:11px; color:var(--dim); }
+.docker-slot.over { border-color:var(--green); }
+.docker-slot.filled { border-style:solid; }
+.docker-error { margin-top:10px; padding:8px; background:rgba(239,68,68,.06); border:1px solid rgba(239,68,68,.15); border-radius:6px; font-family:'SF Mono',monospace; font-size:10px; color:var(--red); display:none; }
+
+/* === SANDBOX === */
+.sandbox { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:8px; margin:16px 0; height:420px; }
+.sandbox-panel { background:var(--bg2); border:1px solid var(--border); border-radius:8px; overflow:hidden; display:flex; flex-direction:column; }
+.sandbox-header { padding:6px 12px; background:var(--bg3); border-bottom:1px solid var(--border); font-size:11px; font-weight:600; color:var(--dim); text-transform:uppercase; letter-spacing:.5px; }
+.sandbox-body { flex:1; padding:10px; overflow-y:auto; font-family:'SF Mono',monospace; font-size:11px; line-height:1.6; }
+.sandbox-input { display:flex; border-top:1px solid var(--border); }
+.sandbox-input input { flex:1; background:transparent; border:none; padding:8px 12px; color:var(--text); font-family:'SF Mono',monospace; font-size:12px; outline:none; }
+.sandbox-input button { padding:8px 14px; background:var(--green); color:#000; border:none; font-weight:600; cursor:pointer; font-size:12px; }
+
+/* === SESSION PLAYER === */
+.player { margin:16px 0; }
+.player-display { background:#000; border:1px solid var(--border); border-radius:10px 10px 0 0; padding:16px; min-height:240px; max-height:300px; overflow-y:auto; font-family:'SF Mono',monospace; font-size:12px; }
+.player-entry { padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03); animation:fadeIn .3s; }
+.player-role { font-weight:600; margin-right:8px; }
+.player-role.user { color:var(--blue); }
+.player-role.assistant { color:var(--green); }
+.player-role.tool-call { color:var(--amber); }
+.player-role.tool-result { color:var(--green); }
+.player-role.system { color:var(--dim); }
+.player-controls { display:flex; align-items:center; gap:12px; background:var(--bg3); border:1px solid var(--border); border-top:none; border-radius:0 0 10px 10px; padding:10px 16px; }
+.player-btn { background:var(--bg); border:1px solid var(--border); border-radius:5px; padding:4px 12px; color:var(--text); cursor:pointer; font-size:12px; }
+.player-btn:hover { border-color:var(--green); }
+.player-timeline { flex:1; -webkit-appearance:none; height:4px; border-radius:2px; background:var(--bg); outline:none; }
+.player-timeline::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--green); cursor:pointer; }
+.player-tokens { font-size:11px; color:var(--dim); font-family:'SF Mono',monospace; }
+
+/* === SPEED ROUND === */
+.speed-timer { font-size:48px; font-weight:800; text-align:center; margin:16px 0; font-family:'SF Mono',monospace; color:var(--green); transition:color .3s; }
+.speed-timer.urgent { color:var(--red); animation:timerPulse .5s ease infinite; }
+@keyframes timerPulse { 50%{transform:scale(1.05)} }
+.speed-q { font-size:17px; font-weight:600; margin-bottom:16px; text-align:center; }
+.speed-opt { display:block; width:100%; padding:12px 16px; margin:6px 0; border-radius:8px; border:1px solid var(--border); background:var(--bg2); color:var(--text); cursor:pointer; font-size:14px; text-align:left; transition:all .2s; }
+.speed-opt:hover:not(:disabled) { border-color:var(--green); background:rgba(0,232,123,.04); }
+.speed-opt.correct { border-color:var(--green); background:rgba(0,232,123,.1); }
+.speed-opt.wrong { border-color:var(--red); background:rgba(239,68,68,.1); }
+.speed-opt:disabled { cursor:default; opacity:.7; }
+.speed-progress { font-size:12px; color:var(--dim); text-align:center; margin-bottom:12px; }
+.speed-review { margin-top:16px; }
+.speed-review-card { padding:14px; margin:8px 0; border-radius:8px; border-left:4px solid var(--border); background:var(--bg2); }
+.speed-review-card.ok { border-left-color:var(--green); }
+.speed-review-card.no { border-left-color:var(--red); }
+
+/* === QUIZ === */
+.quiz { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:20px; margin:16px 0; }
+.quiz-q { font-size:15px; font-weight:600; margin-bottom:14px; }
+.quiz-opt { display:block; width:100%; padding:10px 14px; margin:6px 0; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); cursor:pointer; font-size:13px; text-align:left; transition:all .2s; }
+.quiz-opt:hover:not(:disabled) { border-color:var(--green); }
+.quiz-opt.correct { border-color:var(--green); background:rgba(0,232,123,.08); color:var(--green); }
+.quiz-opt.wrong { border-color:var(--red); background:rgba(239,68,68,.08); color:var(--red); }
+.quiz-opt:disabled { cursor:default; }
+.quiz-fb { margin-top:10px; padding:10px 14px; border-radius:8px; font-size:13px; display:none; }
+.quiz-fb.show { display:block; }
+.quiz-fb.ok { background:rgba(0,232,123,.06); color:var(--green); }
+.quiz-fb.no { background:rgba(239,68,68,.06); color:var(--red); }
+
+/* === CERTIFICATE === */
+.cert-wrap { perspective:1000px; display:flex; justify-content:center; margin:24px 0; }
+.cert-card { width:600px; min-height:380px; background:linear-gradient(145deg,#0c1220 0%,#141e30 50%,#0c1220 100%); border-radius:16px; padding:40px; text-align:center; position:relative; overflow:hidden; transform-style:preserve-3d; transition:transform .1s; border:2px solid transparent; background-clip:padding-box; }
+.cert-border { position:absolute; inset:-2px; border-radius:16px; background:linear-gradient(135deg,var(--green),var(--violet),var(--blue),var(--green)); z-index:-1; animation:borderRotate 4s linear infinite; background-size:300% 300%; }
+@keyframes borderRotate { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+.cert-holo { position:absolute; inset:0; background:linear-gradient(135deg,transparent 30%,rgba(0,232,123,.08) 45%,rgba(139,92,246,.08) 55%,transparent 70%); mix-blend-mode:overlay; pointer-events:none; transition:background-position .1s; }
+.cert-title { font-size:14px; text-transform:uppercase; letter-spacing:3px; color:var(--dim); margin-bottom:8px; }
+.cert-name { font-size:32px; font-weight:800; background:linear-gradient(135deg,var(--green),var(--violet)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin:16px 0; }
+.cert-scores { display:flex; gap:24px; justify-content:center; margin:20px 0; }
+.cert-score-item { text-align:center; }
+.cert-score-val { font-size:24px; font-weight:700; color:var(--gold); }
+.cert-score-label { font-size:11px; color:var(--dim); }
+.cert-date { font-size:12px; color:var(--dim); margin-top:16px; }
+#confettiCanvas { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:200; }
+
+/* === SCROLLBAR === */
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--bg3); border-radius:3px; }
+
+/* === RESPONSIVE === */
+@media(max-width:768px) {
+  .slide { padding:20px; }
+  h1,.title-h1 { font-size:28px; }
+  .auth-doors { grid-template-columns:1fr 1fr; }
+  .inspector-wrap { grid-template-columns:1fr; }
+  .drag-area { flex-direction:column; }
+  .sandbox { grid-template-columns:1fr; height:auto; }
+  .norm-grid { grid-template-columns:1fr; }
+  .prov-compare { grid-template-columns:1fr; }
+  .docker-area { flex-direction:column; }
+  .topo-canvas { height:400px; }
+  .cert-card { width:100%; }
+}
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <div class="nav-title"><strong>OpenClaw</strong>&nbsp; Architecture Crash Course</div>
+  <div class="nav-dots" id="navDots"></div>
+  <div class="nav-btns">
+    <button class="nav-btn" id="prevBtn" onclick="go(-1)">Back</button>
+    <button class="nav-btn primary" id="nextBtn" onclick="go(1)">Next</button>
+  </div>
+</div>
+<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+<div class="score-display">Explored: <span id="scoreVal">0</span> / <span id="scoreMax">0</span></div>
+<div class="keys-hint"><kbd>&larr;</kbd> <kbd>&rarr;</kbd> to navigate</div>
+
+<div class="slide-wrap" id="slideWrap">
+
+<!-- ======== SLIDE 0: TITLE ======== -->
+<div class="slide" id="s0">
+<div class="title-wrap">
+  <div class="title-particles" id="titleParticles"></div>
+  <div class="title-h1">OpenClaw Architecture</div>
+  <div class="title-sub">Interactive Crash Course &mdash; From Zero to Mastery</div>
+  <div class="title-badges">
+    <div class="title-badge"><strong>24</strong> Interactive Slides</div>
+    <div class="title-badge"><strong>20+</strong> Unique Interactions</div>
+    <div class="title-badge"><strong>1</strong> Speed Round</div>
+    <div class="title-badge"><strong>1</strong> Holographic Certificate</div>
+  </div>
+  <button class="title-start" onclick="go(1)">Begin the Deep Dive &rarr;</button>
+</div>
+</div>
+
+<!-- ======== SLIDE 1: BOOT ======== -->
+<div class="slide" id="s1">
+<h2>Boot Sequence</h2>
+<p>Type <code>openclaw gateway</code> to boot the system and watch every subsystem come online.</p>
+<div class="term" id="bootTerm">
+  <div class="term-bar"><div class="term-dot r"></div><div class="term-dot y"></div><div class="term-dot g"></div><span style="margin-left:10px;font-size:11px;color:var(--dim)">Terminal</span></div>
+  <div class="term-body" id="bootBody">
+    <div><span class="term-prompt">~ $ </span><input class="term-input" id="bootInput" placeholder="type 'openclaw gateway' and press Enter"></div>
+  </div>
+</div>
+</div>
+
+<!-- ======== SLIDE 2: WHAT IS OPENCLAW ======== -->
+<div class="slide" id="s2">
+<h2>What Is OpenClaw?</h2>
+<p>Drag the slider to peel through the architecture layers &mdash; from the outside in.</p>
+<div class="depth-wrap">
+  <input type="range" class="depth-slider" id="depthSlider" min="0" max="100" value="0" oninput="updateDepth(this.value)">
+  <div class="depth-label" id="depthLabel">External Layer &mdash; 0%</div>
+</div>
+<div class="depth-view" id="depthView">
+  <div class="depth-layer visible" id="dl0" style="border:1px solid var(--green);background:rgba(0,232,123,.04)">
+    <strong style="color:var(--green)">External Layer</strong> &mdash; Messaging Apps<br>
+    <span style="font-size:13px;color:var(--dim)">WhatsApp &bull; Telegram &bull; Discord &bull; iMessage &bull; Slack &bull; LINE &bull; Signal &bull; Teams &bull; Matrix</span>
+  </div>
+  <div class="depth-layer hidden" id="dl1" style="border:1px solid var(--amber);background:rgba(245,158,11,.04)">
+    <strong style="color:var(--amber)">Channel Layer</strong> &mdash; Normalization Plugins<br>
+    <span style="font-size:13px;color:var(--dim)">Each platform has a channel plugin that normalizes raw webhooks into a standard Message format. grammy (Telegram), Baileys (WhatsApp), discord.js, etc.</span>
+  </div>
+  <div class="depth-layer hidden" id="dl2" style="border:1px solid var(--blue);background:rgba(56,189,248,.04)">
+    <strong style="color:var(--blue)">Gateway Layer</strong> &mdash; The Central Hub<br>
+    <span style="font-size:13px;color:var(--dim)">WebSocket server (port 18789) + HTTP. 80+ API methods. Auth (token/password/Tailscale/device). Routing engine. Session management. Hono.js + ws library.</span>
+  </div>
+  <div class="depth-layer hidden" id="dl3" style="border:1px solid var(--violet);background:rgba(139,92,246,.04)">
+    <strong style="color:var(--violet)">Agent Runtime</strong> &mdash; Pi Engine<br>
+    <span style="font-size:13px;color:var(--dim)">Calls LLMs (Claude/GPT/Gemini). Executes tools: bash, browser, files, web. Manages skills (SKILL.md files). Spawns sub-agents. Streams responses via chat.delta events.</span>
+  </div>
+  <div class="depth-layer hidden" id="dl4" style="border:1px solid var(--gold);background:rgba(251,191,36,.04)">
+    <strong style="color:var(--gold)">State Layer</strong> &mdash; File-Based Persistence<br>
+    <span style="font-size:13px;color:var(--dim)">~/.openclaw/openclaw.json (JSON5 config). Session transcripts as JSONL. Skills on disk. Cron jobs. Device auth keys. No database &mdash; everything is files.</span>
+  </div>
+</div>
+<div class="insight"><div class="insight-label">Key Insight</div>OpenClaw is a <strong>self-hosted gateway</strong>. You run ONE process on your machine. It bridges all your messaging apps to an AI agent that can actually <em>do things</em> &mdash; read files, write code, browse the web, execute commands. Your data stays on your hardware.</div>
+</div>
+
+<!-- ======== SLIDE 3: MESSAGE TRACE ======== -->
+<div class="slide" id="s3">
+<h2>The Message Journey</h2>
+<p>Click the button to send a message and watch it traverse the entire pipeline. Click any node to inspect the data at that stage.</p>
+<div class="trace-canvas" id="traceCanvas">
+  <div class="trace-node" id="tn0" style="left:2%;top:38%;color:var(--green)" onclick="inspectTrace(0)">WhatsApp</div>
+  <div class="trace-node" id="tn1" style="left:22%;top:38%;color:var(--amber)" onclick="inspectTrace(1)">Channel Plugin</div>
+  <div class="trace-node" id="tn2" style="left:42%;top:38%;color:var(--blue)" onclick="inspectTrace(2)">Gateway</div>
+  <div class="trace-node" id="tn3" style="left:62%;top:38%;color:var(--violet)" onclick="inspectTrace(3)">Pi Agent</div>
+  <div class="trace-node" id="tn4" style="left:82%;top:20%" onclick="inspectTrace(4)">LLM (Claude)</div>
+  <div class="trace-node" id="tn5" style="left:82%;top:58%;color:var(--amber)" onclick="inspectTrace(5)">Tool (bash)</div>
+  <div class="trace-particle" id="traceP"></div>
+</div>
+<button class="nav-btn primary" id="traceBtn" onclick="runTrace()" style="margin:8px 0">Send &ldquo;Create hello.py&rdquo;</button>
+<div class="trace-inspector glass" id="traceInsp">
+  <div style="font-size:12px;color:var(--dim);margin-bottom:6px" id="traceInspTitle"></div>
+  <pre class="mono" style="font-size:12px;white-space:pre-wrap;color:var(--text)" id="traceInspBody"></pre>
+</div>
+</div>
+
+<!-- ======== SLIDE 4: WEBSOCKET INSPECTOR ======== -->
+<div class="slide" id="s4">
+<h2>WebSocket Protocol</h2>
+<p>OpenClaw communicates via <strong>WebSocket on port 18789</strong>. All messages are JSON frames. Click any frame to decode it.</p>
+<div class="filter-btns">
+  <button class="filter-btn active" onclick="filterFrames('all',this)">All</button>
+  <button class="filter-btn" onclick="filterFrames('auth',this)">Auth</button>
+  <button class="filter-btn" onclick="filterFrames('chat',this)">Chat</button>
+  <button class="filter-btn" onclick="filterFrames('tool',this)">Tools</button>
+  <button class="filter-btn" onclick="filterFrames('sys',this)">System</button>
+  <button class="filter-btn corrupt" onclick="injectCorrupt()">Inject Corrupt Frame</button>
+</div>
+<div class="inspector-wrap">
+  <div class="frame-log" id="frameLog"></div>
+  <div class="frame-detail" id="frameDetail"><span class="dim">Click a frame to inspect it</span></div>
+</div>
+</div>
+
+<!-- ======== SLIDE 5: API EXPLORER ======== -->
+<div class="slide" id="s5">
+<h2>80+ API Methods</h2>
+<p>The Gateway exposes a massive API surface. Search and explore all methods below.</p>
+<input class="api-search" id="apiSearch" placeholder="Search methods... (try 'chat', 'session', 'agent')" oninput="filterAPI()">
+<div class="api-cats" id="apiCats">
+  <span class="api-cat active" onclick="filterAPICat('all',this)">All (80+)</span>
+  <span class="api-cat" onclick="filterAPICat('chat',this)">Chat</span>
+  <span class="api-cat" onclick="filterAPICat('session',this)">Session</span>
+  <span class="api-cat" onclick="filterAPICat('agent',this)">Agent</span>
+  <span class="api-cat" onclick="filterAPICat('config',this)">Config</span>
+  <span class="api-cat" onclick="filterAPICat('channel',this)">Channel</span>
+  <span class="api-cat" onclick="filterAPICat('skill',this)">Skills</span>
+  <span class="api-cat" onclick="filterAPICat('cron',this)">Cron</span>
+  <span class="api-cat" onclick="filterAPICat('system',this)">System</span>
+</div>
+<div class="api-list" id="apiList"></div>
+<div class="insight"><div class="insight-label">Design Pattern</div>Every method follows the same frame structure: <span class="mono">{type:&quot;request&quot;, id, method, params}</span> &rarr; <span class="mono">{type:&quot;response&quot;, id, result}</span>. No REST verbs, no URL paths &mdash; just WebSocket method calls.</div>
+</div>
+
+<!-- ======== SLIDE 6: NORMALIZER ======== -->
+<div class="slide" id="s6">
+<h2>Channel Normalizer</h2>
+<p>Each platform sends different webhook formats. Drag fields from the raw payload to the correct slot in the normalized <strong>Message</strong> format. <span class="gold" id="normScore">0/5 mapped</span></p>
+<div class="norm-tabs">
+  <span class="norm-tab active" onclick="switchNormTab(0,this)">Telegram</span>
+  <span class="norm-tab" onclick="switchNormTab(1,this)">WhatsApp</span>
+  <span class="norm-tab" onclick="switchNormTab(2,this)">Discord</span>
+</div>
+<div class="norm-grid">
+  <div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:6px">Raw Webhook &mdash; drag fields from here:</div>
+    <div class="norm-raw" id="normRaw"></div>
+    <div id="normFields" style="margin-top:8px"></div>
+  </div>
+  <div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:6px">Normalized OpenClaw Message:</div>
+    <div class="norm-slots">
+      <div class="norm-slot" data-slot="sender" ondrop="dropNorm(event)" ondragover="dragOverEv(event)" ondragleave="dragLeaveEv(event)"><span class="norm-slot-label">sender:</span></div>
+      <div class="norm-slot" data-slot="channel" ondrop="dropNorm(event)" ondragover="dragOverEv(event)" ondragleave="dragLeaveEv(event)"><span class="norm-slot-label">channel:</span></div>
+      <div class="norm-slot" data-slot="text" ondrop="dropNorm(event)" ondragover="dragOverEv(event)" ondragleave="dragLeaveEv(event)"><span class="norm-slot-label">text:</span></div>
+      <div class="norm-slot" data-slot="chatId" ondrop="dropNorm(event)" ondragover="dragOverEv(event)" ondragleave="dragLeaveEv(event)"><span class="norm-slot-label">chatId:</span></div>
+      <div class="norm-slot" data-slot="timestamp" ondrop="dropNorm(event)" ondragover="dragOverEv(event)" ondragleave="dragLeaveEv(event)"><span class="norm-slot-label">timestamp:</span></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ======== SLIDE 7: ROUTING ======== -->
+<div class="slide" id="s7">
+<h2>Message Routing</h2>
+<p>Drag each message to the correct agent based on the routing rules shown. <span class="gold" id="routeScore">0/6 correct</span></p>
+<div class="glass" style="font-size:13px;margin-bottom:12px">
+  <strong>Routing Rules:</strong><br>
+  1. Telegram messages with &ldquo;/research&rdquo; &rarr; <span style="color:var(--violet)">Research Agent</span><br>
+  2. Discord messages &rarr; <span style="color:var(--blue)">Default Agent</span><br>
+  3. WhatsApp group messages &rarr; <span style="color:var(--dim)">/dev/null</span> (ignored)<br>
+  4. Everything else &rarr; <span style="color:var(--blue)">Default Agent</span>
+</div>
+<div class="drag-area">
+  <div class="drag-col">
+    <h4>Incoming Messages</h4>
+    <div id="dragSource">
+      <div class="drag-item" draggable="true" data-answer="default" ondragstart="dragStartEv(event)" id="dm0"><span class="channel-icon" style="background:var(--blue)"></span>Telegram: &ldquo;What&rsquo;s the weather?&rdquo;</div>
+      <div class="drag-item" draggable="true" data-answer="research" ondragstart="dragStartEv(event)" id="dm1"><span class="channel-icon" style="background:var(--blue)"></span>Telegram: &ldquo;/research quantum computing&rdquo;</div>
+      <div class="drag-item" draggable="true" data-answer="default" ondragstart="dragStartEv(event)" id="dm2"><span class="channel-icon" style="background:var(--violet)"></span>Discord: &ldquo;Help me debug this&rdquo;</div>
+      <div class="drag-item" draggable="true" data-answer="null" ondragstart="dragStartEv(event)" id="dm3"><span class="channel-icon" style="background:var(--green)"></span>WhatsApp Group: &ldquo;Hey everyone&rdquo;</div>
+      <div class="drag-item" draggable="true" data-answer="default" ondragstart="dragStartEv(event)" id="dm4"><span class="channel-icon" style="background:var(--green)"></span>WhatsApp DM: &ldquo;Remind me tomorrow&rdquo;</div>
+      <div class="drag-item" draggable="true" data-answer="research" ondragstart="dragStartEv(event)" id="dm5"><span class="channel-icon" style="background:var(--blue)"></span>Telegram: &ldquo;/research best practices CI/CD&rdquo;</div>
+    </div>
+  </div>
+  <div class="drag-col">
+    <h4>Agent Destinations</h4>
+    <div class="drop-zone" data-target="default" ondrop="dropMsg(event)" ondragover="dragOverEv(event)" ondragleave="dragLeaveEv(event)" style="border-color:var(--blue);margin-bottom:10px">
+      <div style="font-size:12px;color:var(--blue);margin-bottom:4px">Default Agent</div>
+    </div>
+    <div class="drop-zone" data-target="research" ondrop="dropMsg(event)" ondragover="dragOverEv(event)" ondragleave="dragLeaveEv(event)" style="border-color:var(--violet);margin-bottom:10px">
+      <div style="font-size:12px;color:var(--violet);margin-bottom:4px">Research Agent</div>
+    </div>
+    <div class="drop-zone" data-target="null" ondrop="dropMsg(event)" ondragover="dragOverEv(event)" ondragleave="dragLeaveEv(event)" style="border-color:var(--dim)">
+      <div style="font-size:12px;color:var(--dim);margin-bottom:4px">/dev/null (Ignore)</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ======== SLIDE 8: AUTH PUZZLE ======== -->
+<div class="slide" id="s8">
+<h2>Hack the Gateway</h2>
+<p>Solve all 5 authentication methods to gain access. <span class="gold" id="authScore">0/5 unlocked</span></p>
+<div class="auth-doors" id="authDoors">
+  <div class="auth-door" id="ad0">
+    <div><h4>Token Auth</h4><div class="lock">&#x1f512;</div></div>
+    <div><p style="font-size:11px;color:var(--dim)">The token is: <span id="tokenHint" style="color:var(--green)"></span></p>
+    <input class="auth-input" placeholder="Enter bearer token..." id="tokenInput" onkeydown="if(event.key==='Enter')checkToken()">
+    <button class="nav-btn" onclick="checkToken()" style="width:100%;margin-top:4px;font-size:11px">Submit</button></div>
+  </div>
+  <div class="auth-door" id="ad1">
+    <div><h4>Password</h4><div class="lock">&#x1f512;</div></div>
+    <div><p style="font-size:11px;color:var(--dim)">Hash: <span class="mono">$2b$10...xK9</span></p>
+    <button class="auth-opt" onclick="checkPwd(this,false)">hunter2</button>
+    <button class="auth-opt" onclick="checkPwd(this,true)">0p3nCl4w!</button>
+    <button class="auth-opt" onclick="checkPwd(this,false)">password123</button>
+    <button class="auth-opt" onclick="checkPwd(this,false)">admin</button></div>
+  </div>
+  <div class="auth-door" id="ad2">
+    <div><h4>Tailscale</h4><div class="lock">&#x1f512;</div></div>
+    <div><p style="font-size:11px;color:var(--dim)">Which IP is on the mesh?</p>
+    <button class="auth-opt" onclick="checkTS(this,false)">8.8.8.8</button>
+    <button class="auth-opt" onclick="checkTS(this,true)">100.75.169.95</button>
+    <button class="auth-opt" onclick="checkTS(this,false)">192.168.1.1</button>
+    <button class="auth-opt" onclick="checkTS(this,false)">10.0.0.1</button></div>
+  </div>
+  <div class="auth-door" id="ad3">
+    <div><h4>Device Sig</h4><div class="lock">&#x1f512;</div></div>
+    <div><p style="font-size:11px;color:var(--dim)">Order: timestamp, nonce, HMAC</p>
+    <div id="sigSlots" style="min-height:70px">
+      <div class="drag-item" draggable="true" data-sig="2" ondragstart="dragStartEv(event)" id="sig0" style="font-size:11px;padding:6px 8px">HMAC-SHA256</div>
+      <div class="drag-item" draggable="true" data-sig="0" ondragstart="dragStartEv(event)" id="sig1" style="font-size:11px;padding:6px 8px">Timestamp</div>
+      <div class="drag-item" draggable="true" data-sig="1" ondragstart="dragStartEv(event)" id="sig2" style="font-size:11px;padding:6px 8px">Nonce</div>
+    </div>
+    <button class="nav-btn" onclick="checkSig()" style="width:100%;font-size:11px">Verify</button></div>
+  </div>
+  <div class="auth-door" id="ad4">
+    <div><h4>Loopback</h4><div class="lock">&#x1f512;</div></div>
+    <div><p style="font-size:11px;color:var(--dim)">Local connections skip auth entirely.</p>
+    <button class="auth-opt" onclick="checkLoop(this)" style="text-align:center;color:var(--green)">127.0.0.1</button></div>
+  </div>
+</div>
+</div>
+
+<!-- ======== SLIDE 9: LLM DEBUGGER ======== -->
+<div class="slide" id="s9">
+<h2>The LLM Loop &mdash; Step-Through Debugger</h2>
+<p>Walk through a real agent interaction step by step. Click <strong>Step</strong> to advance, or set breakpoints by clicking a step.</p>
+<div class="debugger">
+  <div class="debug-toolbar">
+    <button class="debug-btn" id="dbgStep" onclick="debugStep()">Step &rarr;</button>
+    <button class="debug-btn" id="dbgCont" onclick="debugContinue()">Continue &raquo;</button>
+    <button class="debug-btn" onclick="debugReset()">Reset</button>
+    <span style="flex:1"></span>
+    <span class="mono" style="font-size:11px;color:var(--dim)" id="dbgStatus">Ready &mdash; Step 0/7</span>
+  </div>
+  <div class="debug-steps" id="dbgSteps">
+    <div class="debug-step" data-i="0" onclick="toggleBP(this)">1. Receive user message: <span class="accent">&ldquo;Create a file called hello.py&rdquo;</span></div>
+    <div class="debug-step" data-i="1" onclick="toggleBP(this)">2. Assemble context: system prompt + session history + 12 skills</div>
+    <div class="debug-step" data-i="2" onclick="toggleBP(this)">3. Call LLM (Claude Opus) with context <span class="dim">(~4200 tokens)</span></div>
+    <div class="debug-step" data-i="3" onclick="toggleBP(this)">4. Parse response &rarr; <span class="amber">tool_call: exec</span> <span class="mono dim">echo 'print("hello")' &gt; hello.py</span></div>
+    <div class="debug-step" data-i="4" onclick="toggleBP(this)">5. Execute bash tool &rarr; <span class="term-ok">exit code 0</span>, file created</div>
+    <div class="debug-step" data-i="5" onclick="toggleBP(this)">6. Call LLM again with tool result <span class="dim">(+120 tokens)</span></div>
+    <div class="debug-step" data-i="6" onclick="toggleBP(this)">7. Parse response &rarr; <span class="accent">text</span>: &ldquo;I&rsquo;ve created hello.py with a hello world script.&rdquo;</div>
+  </div>
+  <div class="debug-data" id="dbgData">Click Step to begin. Click any step number to set a breakpoint (red dot).</div>
+</div>
+<div class="insight"><div class="insight-label">The Core Loop</div>The agent calls the LLM, which may return text OR tool calls. If tool calls: execute the tool, feed the result back to the LLM, and loop. This continues until the LLM returns a text response (no tool calls). This loop is the heart of every agent interaction.</div>
+</div>
+
+<!-- ======== SLIDE 10: SKILLS ======== -->
+<div class="slide" id="s10">
+<h2>Skills System</h2>
+<p>Skills are <strong>SKILL.md files</strong> that teach the agent new capabilities. Edit the skill below and see how the agent interprets it.</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0">
+  <div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:6px">SKILL.md Editor</div>
+    <textarea id="skillEditor" style="width:100%;height:200px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;color:var(--text);font-family:'SF Mono',monospace;font-size:12px;resize:none;outline:none" oninput="updateSkillPreview()">---
+name: present
+description: Create stunning interactive HTML presentations
+argument-hint: "[topic]"
+---
+
+# Present
+
+Create presentations that make audiences say "how did they do that?"
+Output a single self-contained HTML file.
+
+## Requirements
+- Keyboard navigation (arrow keys)
+- Smooth transitions between slides
+- Interactive elements (drag, click, type)
+- Dark theme with glass morphism</textarea>
+  </div>
+  <div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:6px">Agent Interpretation</div>
+    <div class="glass" id="skillPreview" style="height:200px;overflow-y:auto;font-size:13px"></div>
+  </div>
+</div>
+<h3>Skill Precedence</h3>
+<p style="font-size:13px">When two skills share a name, the <strong>higher level wins</strong>. Workspace overrides everything.</p>
+<div style="display:flex;gap:8px;align-items:flex-end;margin:12px 0">
+  <div style="flex:1;text-align:center"><div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:11px;min-height:50px"><span class="dim">Extra Dirs</span><br><span style="color:var(--dim)">Lowest</span></div></div>
+  <div style="flex:1;text-align:center"><div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:11px;min-height:50px"><span class="dim">Plugin</span></div></div>
+  <div style="flex:1;text-align:center"><div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:11px;min-height:50px"><span class="dim">Bundled</span><br><span style="font-size:10px;color:var(--amber)">present v1</span></div></div>
+  <div style="flex:1;text-align:center"><div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:11px;min-height:50px"><span class="dim">Managed</span><br><span style="font-size:10px;color:var(--violet)">~/.openclaw/skills/</span></div></div>
+  <div style="flex:1;text-align:center"><div style="background:rgba(0,232,123,.06);border:1px solid var(--green);border-radius:6px;padding:10px;font-size:11px;min-height:50px"><strong class="accent">Workspace</strong><br><span style="font-size:10px;color:var(--gold)">present v2 WINS</span></div></div>
+</div>
+</div>
+
+<!-- ======== SLIDE 11: TOOL WORKBENCH ======== -->
+<div class="slide" id="s11">
+<h2>Tool Workbench</h2>
+<p>The agent has 4 core tool types. Try each one &mdash; type commands, browse pages, manage files, or spawn sub-agents.</p>
+<div class="wb-tabs">
+  <span class="wb-tab active" onclick="switchWBTab(0,this)">Bash</span>
+  <span class="wb-tab" onclick="switchWBTab(1,this)">Browser</span>
+  <span class="wb-tab" onclick="switchWBTab(2,this)">Files</span>
+  <span class="wb-tab" onclick="switchWBTab(3,this)">Sub-Agent</span>
+</div>
+<div class="wb-panel active" id="wbp0">
+  <div class="wb-body" id="wbBash"><span class="term-prompt">$ </span><span class="dim">type a command...</span></div>
+  <div class="wb-input"><span style="padding:8px 4px 8px 12px;color:var(--green)">$</span><input id="wbBashIn" placeholder="ls, pwd, echo, cat, date..." onkeydown="if(event.key==='Enter')runWBBash()"></div>
+</div>
+<div class="wb-panel" id="wbp1">
+  <div class="wb-body" id="wbBrowser"><div style="background:var(--bg);border-radius:6px;padding:16px;text-align:center"><span class="dim">Mini viewport</span><div style="margin:12px 0;padding:12px;background:#fff;color:#000;border-radius:4px;font-size:13px" id="wbPage"><h3 style="margin:0 0 8px;color:#333">Example Page</h3><p style="margin:0;color:#666">The browser tool renders pages and extracts content.</p></div></div></div>
+  <div class="wb-input"><input id="wbBrowseIn" placeholder="Enter URL to browse..." onkeydown="if(event.key==='Enter')runWBBrowse()"></div>
+</div>
+<div class="wb-panel" id="wbp2">
+  <div class="wb-body" id="wbFiles"><div class="ftree-item ftree-folder" style="cursor:pointer" onclick="wbFileAction('ls')">workspace/</div><div class="ftree-item ftree-file" style="margin-left:16px;cursor:pointer" onclick="wbFileAction('read')">hello.py</div><div class="ftree-item ftree-file" style="margin-left:16px;cursor:pointer" onclick="wbFileAction('read2')">README.md</div></div>
+  <div class="wb-input"><input id="wbFileIn" placeholder="create filename.ext or delete filename.ext" onkeydown="if(event.key==='Enter')runWBFile()"></div>
+</div>
+<div class="wb-panel" id="wbp3">
+  <div class="wb-body" id="wbAgent"><span class="dim">Spawn a sub-agent to handle a complex sub-task.</span></div>
+  <div class="wb-input"><input id="wbAgentIn" placeholder="Describe task for sub-agent..." onkeydown="if(event.key==='Enter')runWBAgent()"></div>
+</div>
+<div class="wb-counter">Tools used: <span id="wbToolCount">0</span> | Tokens consumed: <span id="wbTokenCount">0</span> | Est. cost: <span id="wbCost">$0.00</span></div>
+</div>
+
+<!-- ======== SLIDE 12: MULTI-AGENT ======== -->
+<div class="slide" id="s12">
+<h2>Multi-Agent Orchestration</h2>
+<p>OpenClaw can route messages to different agents and spawn sub-agents. Select a scenario and click <strong>Run</strong> to watch.</p>
+<div class="ma-scenarios">
+  <button class="nav-btn" onclick="loadMA(0)" style="font-size:11px">Simple Delegation</button>
+  <button class="nav-btn" onclick="loadMA(1)" style="font-size:11px">Parallel Fan-Out</button>
+  <button class="nav-btn" onclick="loadMA(2)" style="font-size:11px">Chain Pipeline</button>
+  <button class="nav-btn primary" onclick="runMA()" style="font-size:11px">Run</button>
+</div>
+<div class="ma-canvas" id="maCanvas"></div>
+<div class="insight"><div class="insight-label">Agent Routing</div>The Gateway&rsquo;s routing engine matches incoming messages against rules (channel, pattern, user) and dispatches to the appropriate agent. Each agent has its own model, tools, skills, and workspace. Sub-agents inherit the parent&rsquo;s session but can use different models for cost/speed optimization.</div>
+</div>
+
+<!-- ======== SLIDE 13: FILE TREE ======== -->
+<div class="slide" id="s13">
+<h2>File-Based State</h2>
+<p>Everything OpenClaw stores lives in <strong class="mono">~/.openclaw/</strong>. No database. Click any file to inspect it.</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0">
+<div class="ftree" id="fileTree"></div>
+<div class="ftree-viewer" id="fileViewer" style="display:block"><span class="dim">Click a file in the tree to view its contents</span></div>
+</div>
+<div class="insight"><div class="insight-label">Why files, not a database?</div>
+<strong>Simplicity.</strong> JSONL is append-only &mdash; writing a new message is just appending a line. No ORM, no migrations, no schema. Inspect state with <span class="mono">cat</span>, back up with <span class="mono">cp</span>, version with <span class="mono">git</span>. For a single-user system, this is the right tradeoff.</div>
+</div>
+
+<!-- ======== SLIDE 14: SESSION PLAYER ======== -->
+<div class="slide" id="s14">
+<h2>Session Transcript Replay</h2>
+<p>Sessions are stored as <strong>JSONL</strong> (one JSON object per line). Use the player to step through a real session.</p>
+<div class="player">
+  <div class="player-display" id="playerDisplay"></div>
+  <div class="player-controls">
+    <button class="player-btn" id="playBtn" onclick="togglePlay()">&#9654; Play</button>
+    <input type="range" class="player-timeline" id="playerTimeline" min="0" max="8" value="0" oninput="seekPlayer(this.value)">
+    <div class="player-tokens" id="playerTokens">Tokens: 0 / 200k</div>
+  </div>
+</div>
+</div>
+
+<!-- ======== SLIDE 15: NETWORK TOPOLOGY ======== -->
+<div class="slide" id="s15">
+<h2>Network Topology</h2>
+<p>Trace the full network path of a message &mdash; from a user&rsquo;s phone to the LLM and back. Click <strong>Trace</strong> to watch.</p>
+<div class="topo-canvas" id="topoCanvas">
+  <div class="topo-node" id="tp0" style="left:1%;top:40%">User Phone</div>
+  <div class="topo-node" id="tp1" style="left:15%;top:20%">Telegram API</div>
+  <div class="topo-node" id="tp2" style="left:15%;top:60%">WhatsApp Cloud</div>
+  <div class="topo-node" id="tp3" style="left:32%;top:40%">Webhook</div>
+  <div class="topo-node" id="tp4" style="left:48%;top:40%;color:var(--green)">OpenClaw Gateway</div>
+  <div class="topo-node" id="tp5" style="left:65%;top:25%">Pi Agent</div>
+  <div class="topo-node" id="tp6" style="left:65%;top:55%">Tool Executor</div>
+  <div class="topo-node" id="tp7" style="left:82%;top:25%">Claude API</div>
+  <div class="topo-node" id="tp8" style="left:82%;top:55%">Local Bash</div>
+</div>
+<button class="nav-btn primary" onclick="traceTopo()" style="margin:8px 0">Trace Message Path</button>
+<div class="glass" id="topoInfo" style="display:none;font-size:12px"></div>
+</div>
+
+<!-- ======== SLIDE 16: WATERFALL ======== -->
+<div class="slide" id="s16">
+<h2>Message Lifecycle Waterfall</h2>
+<p>Every phase of a message&rsquo;s lifecycle. Click any row for details. Use the slider to simulate latency changes.</p>
+<div style="font-size:12px;color:var(--dim);margin-bottom:8px">Latency multiplier: <span id="wfMultLabel">1.0x</span></div>
+<input type="range" min="50" max="300" value="100" style="width:200px;margin-bottom:12px" oninput="updateWF(this.value)">
+<div id="wfChart">
+  <div class="wf-row" onclick="toggleWFDetail(0)"><div class="wf-label">Webhook Receipt</div><div class="wf-track"><div class="wf-bar" style="left:0%;width:3%;background:var(--green)" data-base-w="3" data-base-l="0">5ms</div></div></div>
+  <div class="wf-detail" id="wfd0">Telegram/WhatsApp sends HTTP POST to your webhook URL. OpenClaw&rsquo;s Hono.js server receives and parses the JSON body.</div>
+  <div class="wf-row" onclick="toggleWFDetail(1)"><div class="wf-label">Channel Normalize</div><div class="wf-track"><div class="wf-bar" style="left:3%;width:2%;background:var(--amber)" data-base-w="2" data-base-l="3">3ms</div></div></div>
+  <div class="wf-detail" id="wfd1">Channel plugin transforms platform-specific payload into standard Message format. Pure CPU work.</div>
+  <div class="wf-row" onclick="toggleWFDetail(2)"><div class="wf-label">Gateway Route</div><div class="wf-track"><div class="wf-bar" style="left:5%;width:1%;background:var(--blue)" data-base-w="1" data-base-l="5">2ms</div></div></div>
+  <div class="wf-detail" id="wfd2">Routing engine evaluates message against rules and selects target agent. Auth check if not loopback.</div>
+  <div class="wf-row" onclick="toggleWFDetail(3)"><div class="wf-label">Context Assembly</div><div class="wf-track"><div class="wf-bar" style="left:6%;width:5%;background:var(--violet)" data-base-w="5" data-base-l="6">15ms</div></div></div>
+  <div class="wf-detail" id="wfd3">Pi loads session JSONL, assembles system prompt + history + skills. May trigger compaction if near context limit.</div>
+  <div class="wf-row" onclick="toggleWFDetail(4)"><div class="wf-label">LLM API Call</div><div class="wf-track"><div class="wf-bar" style="left:11%;width:55%;background:var(--gold)" data-base-w="55" data-base-l="11">1200ms</div></div></div>
+  <div class="wf-detail" id="wfd4">HTTPS POST to api.anthropic.com. Dominant latency &mdash; 800-3000ms. First token streams in ~400ms.</div>
+  <div class="wf-row" onclick="toggleWFDetail(5)"><div class="wf-label">Tool Execution</div><div class="wf-track"><div class="wf-bar" style="left:66%;width:8%;background:var(--amber)" data-base-w="8" data-base-l="66">50ms</div></div></div>
+  <div class="wf-detail" id="wfd5">If LLM returns tool_call: execute bash/read/write/browser. Result fed back to LLM.</div>
+  <div class="wf-row" onclick="toggleWFDetail(6)"><div class="wf-label">2nd LLM Call</div><div class="wf-track"><div class="wf-bar" style="left:74%;width:20%;background:var(--gold)" data-base-w="20" data-base-l="74">600ms</div></div></div>
+  <div class="wf-detail" id="wfd6">Second LLM call with tool result. Usually faster. Streams via chat.delta events.</div>
+  <div class="wf-row" onclick="toggleWFDetail(7)"><div class="wf-label">Response Delivery</div><div class="wf-track"><div class="wf-bar" style="left:94%;width:4%;background:var(--green)" data-base-w="4" data-base-l="94">10ms</div></div></div>
+  <div class="wf-detail" id="wfd7">Final text sent back through channel plugin &rarr; platform API &rarr; user&rsquo;s phone. Total: ~1.9s.</div>
+</div>
+</div>
+
+<!-- ======== SLIDE 17: PROVIDER COMPARE ======== -->
+<div class="slide" id="s17">
+<h2>Provider Abstraction</h2>
+<p>Same prompt, two models. Click <strong>Compare</strong> to see side-by-side results. Click <strong>Hot-Swap</strong> to switch models mid-conversation.</p>
+<div style="margin-bottom:12px"><input class="api-search" id="provPrompt" value="Explain quantum entanglement in one paragraph." style="margin-bottom:8px">
+<button class="nav-btn primary" onclick="runProvCompare()">Compare</button>
+<button class="nav-btn" onclick="hotSwapProv()">Hot-Swap Mid-Conversation</button></div>
+<div class="prov-compare">
+  <div class="prov-panel">
+    <div class="prov-header"><span style="color:var(--green)">Claude Opus 4.6</span><span class="dim">anthropic/claude-opus-4-6</span></div>
+    <div class="prov-body" id="provA"><span class="dim">Click Compare...</span></div>
+    <div class="prov-stats"><div><div class="dim">Tokens</div><div class="prov-stat-val" id="provATokens">&mdash;</div></div><div><div class="dim">Latency</div><div class="prov-stat-val" id="provALat">&mdash;</div></div><div><div class="dim">Cost</div><div class="prov-stat-val" id="provACost">&mdash;</div></div></div>
+  </div>
+  <div class="prov-panel">
+    <div class="prov-header"><span style="color:var(--blue)">GPT-4o</span><span class="dim">openai/gpt-4o</span></div>
+    <div class="prov-body" id="provB"><span class="dim">Click Compare...</span></div>
+    <div class="prov-stats"><div><div class="dim">Tokens</div><div class="prov-stat-val" id="provBTokens">&mdash;</div></div><div><div class="dim">Latency</div><div class="prov-stat-val" id="provBLat">&mdash;</div></div><div><div class="dim">Cost</div><div class="prov-stat-val" id="provBCost">&mdash;</div></div></div>
+  </div>
+</div>
+<div class="insight"><div class="insight-label">Provider Layer</div>OpenClaw abstracts LLM providers behind a unified interface. Switch models per-agent, per-request, or as fallbacks. Supports Claude, GPT, Gemini, Mistral, Groq, Ollama, and any OpenAI-compatible endpoint.</div>
+</div>
+
+<!-- ======== SLIDE 18: DOCKER ======== -->
+<div class="slide" id="s18">
+<h2>Docker Architecture</h2>
+<p>Stack the Dockerfile layers in the correct order. Wrong order = realistic build errors. <span class="gold" id="dockerScore">0/6 correct</span></p>
+<div class="docker-area">
+  <div class="docker-source">
+    <div style="font-size:12px;color:var(--dim);margin-bottom:8px">Drag layers in order:</div>
+    <div id="dockerLayers">
+      <div class="docker-layer" draggable="true" data-order="2" id="dk0" ondragstart="dragStartEv(event)">COPY package*.json ./</div>
+      <div class="docker-layer" draggable="true" data-order="5" id="dk1" ondragstart="dragStartEv(event)">EXPOSE 18789</div>
+      <div class="docker-layer" draggable="true" data-order="0" id="dk2" ondragstart="dragStartEv(event)">FROM node:22-slim</div>
+      <div class="docker-layer" draggable="true" data-order="4" id="dk3" ondragstart="dragStartEv(event)">COPY . .</div>
+      <div class="docker-layer" draggable="true" data-order="3" id="dk4" ondragstart="dragStartEv(event)">RUN npm ci --production</div>
+      <div class="docker-layer" draggable="true" data-order="1" id="dk5" ondragstart="dragStartEv(event)">WORKDIR /app</div>
+    </div>
+  </div>
+  <div class="docker-target">
+    <div style="font-size:12px;color:var(--dim);margin-bottom:8px">Dockerfile (top to bottom):</div>
+    <div class="docker-slot" data-pos="0" ondrop="dropDocker(event)" ondragover="dragOverEv(event)" ondragleave="dragLeaveEv(event)">Layer 1 &mdash; Base image</div>
+    <div class="docker-slot" data-pos="1" ondrop="dropDocker(event)" ondragover="dragOverEv(event)" ondragleave="dragLeaveEv(event)">Layer 2 &mdash; Working directory</div>
+    <div class="docker-slot" data-pos="2" ondrop="dropDocker(event)" ondragover="dragOverEv(event)" ondragleave="dragLeaveEv(event)">Layer 3 &mdash; Copy package manifest</div>
+    <div class="docker-slot" data-pos="3" ondrop="dropDocker(event)" ondragover="dragOverEv(event)" ondragleave="dragLeaveEv(event)">Layer 4 &mdash; Install dependencies</div>
+    <div class="docker-slot" data-pos="4" ondrop="dropDocker(event)" ondragover="dragOverEv(event)" ondragleave="dragLeaveEv(event)">Layer 5 &mdash; Copy source</div>
+    <div class="docker-slot" data-pos="5" ondrop="dropDocker(event)" ondragover="dragOverEv(event)" ondragleave="dragLeaveEv(event)">Layer 6 &mdash; Expose port</div>
+    <div class="docker-error" id="dockerErr"></div>
+  </div>
+</div>
+<div class="insight"><div class="insight-label">Layer Order Matters</div>Docker caches each layer. By copying <span class="mono">package.json</span> before the full source, the <span class="mono">npm ci</span> layer is cached unless dependencies change.</div>
+</div>
+
+<!-- ======== SLIDE 19: CHAOS ======== -->
+<div class="slide" id="s19">
+<h2>Error Handling &mdash; Chaos Console</h2>
+<p>Toggle failure injections and watch how OpenClaw responds. Multiple failures can be active simultaneously.</p>
+<div class="chaos-grid">
+  <div class="chaos-toggles">
+    <div class="chaos-toggle"><span>LLM Timeout</span><div class="chaos-switch" id="chaos0" onclick="toggleChaos(0)"></div></div>
+    <div class="chaos-toggle"><span>Channel Webhook Failure</span><div class="chaos-switch" id="chaos1" onclick="toggleChaos(1)"></div></div>
+    <div class="chaos-toggle"><span>Disk Full</span><div class="chaos-switch" id="chaos2" onclick="toggleChaos(2)"></div></div>
+    <div class="chaos-toggle"><span>Auth Token Expired</span><div class="chaos-switch" id="chaos3" onclick="toggleChaos(3)"></div></div>
+    <div class="chaos-toggle"><span>Context Window Overflow</span><div class="chaos-switch" id="chaos4" onclick="toggleChaos(4)"></div></div>
+  </div>
+  <div class="chaos-log" id="chaosLog"><div class="dim">Toggle a failure to see the system response...</div></div>
+</div>
+</div>
+
+<!-- ======== SLIDE 20: SANDBOX ======== -->
+<div class="slide" id="s20">
+<h2>Full System Sandbox</h2>
+<p>Type a message and watch all layers of OpenClaw respond in real-time.</p>
+<div class="sandbox" id="sandbox">
+  <div class="sandbox-panel">
+    <div class="sandbox-header">Chat</div>
+    <div class="sandbox-body" id="sbChat"></div>
+    <div class="sandbox-input"><input id="sbInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendSandbox()"><button onclick="sendSandbox()">Send</button></div>
+  </div>
+  <div class="sandbox-panel">
+    <div class="sandbox-header">Gateway Log</div>
+    <div class="sandbox-body" id="sbGateway"><span class="dim">[ready] Listening on ws://0.0.0.0:18789</span></div>
+  </div>
+  <div class="sandbox-panel">
+    <div class="sandbox-header">Agent Runtime</div>
+    <div class="sandbox-body" id="sbAgent"><span class="dim">[idle] Waiting for messages...</span></div>
+  </div>
+  <div class="sandbox-panel">
+    <div class="sandbox-header">File System</div>
+    <div class="sandbox-body" id="sbFS"><span class="dim">~/.openclaw/workspace/agents/default/sessions/</span></div>
+  </div>
+</div>
+</div>
+
+<!-- ======== SLIDE 21: SPEED ROUND ======== -->
+<div class="slide" id="s21">
+<h2>Speed Round</h2>
+<p>10 random questions from a pool of 26. You have <strong>15 seconds</strong> per question. <span class="gold" id="speedScore">0/10</span></p>
+<div id="speedArea">
+  <div style="text-align:center;margin:40px 0">
+    <p style="font-size:15px;margin-bottom:20px">Test your recall under pressure. Questions are randomized from a pool.</p>
+    <button class="nav-btn primary" onclick="startSpeed()" style="font-size:14px;padding:12px 28px">Start Speed Round</button>
+  </div>
+</div>
+<div id="speedReview" style="display:none"></div>
+</div>
+
+<!-- ======== SLIDE 22: KNOWLEDGE QUIZ ======== -->
+<div class="slide" id="s22">
+<h2>Knowledge Assessment</h2>
+<p>10 questions testing deep understanding. Take your time. <span class="gold" id="quizTotal">0/10 correct</span></p>
+<div id="quizArea"></div>
+<div id="quizResult" style="display:none;margin-top:20px;padding:24px;background:var(--bg2);border-radius:12px;border:1px solid var(--border);text-align:center">
+  <div style="font-size:20px;font-weight:600" id="quizResultText"></div>
+  <div style="color:var(--dim);margin-top:8px" id="quizResultMsg"></div>
+</div>
+</div>
+
+<!-- ======== SLIDE 23: CERTIFICATE ======== -->
+<div class="slide" id="s23">
+<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:calc(100vh - 140px);text-align:center">
+<h1>Architecture Mastery</h1>
+<p class="sub">You&rsquo;ve explored the full OpenClaw stack</p>
+<div style="margin:20px 0">
+  <input id="certName" placeholder="Enter your name for the certificate" style="padding:10px 20px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:16px;text-align:center;width:320px;outline:none" onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'">
+  <button class="nav-btn primary" onclick="generateCert()" style="margin-left:8px;padding:10px 20px">Generate Certificate</button>
+</div>
+<div class="cert-wrap" id="certWrap" style="display:none">
+  <div class="cert-card" id="certCard">
+    <div class="cert-border"></div>
+    <div class="cert-holo" id="certHolo"></div>
+    <div class="cert-title">Certificate of Mastery</div>
+    <div style="font-size:12px;color:var(--dim);margin-top:4px">OpenClaw Architecture &mdash; Interactive Crash Course</div>
+    <div class="cert-name" id="certNameDisplay"></div>
+    <div style="font-size:14px;color:var(--dim)">has demonstrated deep understanding of the OpenClaw architecture</div>
+    <div class="cert-scores">
+      <div class="cert-score-item"><div class="cert-score-val" id="certExplore">0</div><div class="cert-score-label">Explored</div></div>
+      <div class="cert-score-item"><div class="cert-score-val" id="certSpeed">0</div><div class="cert-score-label">Speed Round</div></div>
+      <div class="cert-score-item"><div class="cert-score-val" id="certQuiz">0</div><div class="cert-score-label">Assessment</div></div>
+    </div>
+    <div class="cert-date" id="certDate"></div>
+  </div>
+</div>
+<button class="nav-btn" id="certDL" onclick="downloadCert()" style="display:none;margin-top:16px">Download as PNG</button>
+<canvas id="confettiCanvas" style="display:none"></canvas>
+<div style="margin-top:24px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+  <button class="nav-btn" onclick="goTo(0)">Replay from Start</button>
+  <button class="nav-btn" onclick="goTo(4)">WebSocket Inspector</button>
+  <button class="nav-btn" onclick="goTo(9)">LLM Debugger</button>
+  <button class="nav-btn" onclick="goTo(20)">Sandbox</button>
+</div>
+</div>
+</div>
+
+</div><!-- end slide-wrap -->
+
+<script>
+// ========== STATE ==========
+var TOTAL = 24;
+var cur = 0, visited = new Set([0]), score = 0, maxScore = 120;
+document.getElementById('scoreMax').textContent = maxScore;
+
+// ========== NAV ==========
+function buildNav(){var d=document.getElementById('navDots');for(var i=0;i<TOTAL;i++){var dot=document.createElement('div');dot.className='nav-dot'+(i===0?' active':'');dot.dataset.idx=i;dot.onclick=function(){goTo(parseInt(this.dataset.idx));};d.appendChild(dot);}}
+function goTo(n){if(n<0||n>=TOTAL)return;document.querySelectorAll('.slide').forEach(function(s){s.classList.remove('active');});document.getElementById('s'+n).classList.add('active');visited.add(cur);cur=n;visited.add(n);document.querySelectorAll('.nav-dot').forEach(function(d,i){d.className='nav-dot';if(i===n)d.classList.add('active');else if(visited.has(i))d.classList.add('visited');});document.getElementById('prevBtn').disabled=n===0;document.getElementById('nextBtn').disabled=n===TOTAL-1;document.getElementById('progressFill').style.width=((n/(TOTAL-1))*100)+'%';document.getElementById('slideWrap').scrollTop=0;}
+function go(d){goTo(cur+d);}
+document.addEventListener('keydown',function(e){if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;if(e.key==='ArrowRight'||e.key===' ')go(1);if(e.key==='ArrowLeft')go(-1);});
+function addScore(n){score+=n;document.getElementById('scoreVal').textContent=score;}
+
+// ========== SLIDE 0: TITLE PARTICLES ==========
+(function(){
+  var container=document.getElementById('titleParticles');
+  if(!container)return;
+  var colors=['#00e87b','#8b5cf6','#38bdf8','#fbbf24','#f59e0b'];
+  for(var i=0;i<35;i++){
+    var p=document.createElement('div');p.className='title-particle';
+    var size=2+Math.random()*5;
+    p.style.width=size+'px';p.style.height=size+'px';
+    p.style.background=colors[Math.floor(Math.random()*colors.length)];
+    p.style.left=Math.random()*100+'%';p.style.bottom='-10px';
+    p.style.animationDuration=(8+Math.random()*14)+'s';
+    p.style.animationDelay=(Math.random()*15)+'s';
+    container.appendChild(p);
+  }
+})();
+
+// ========== SLIDE 1: BOOT ==========
+var booted=false;
+document.getElementById('bootInput').addEventListener('keydown',function(e){
+  if(e.key==='Enter'&&!booted){
+    var v=this.value.trim().toLowerCase();
+    if(v==='openclaw gateway'||v==='openclaw start'){
+      booted=true;this.disabled=true;
+      var body=document.getElementById('bootBody');
+      var lines=[
+        {t:'[OK] Configuration loaded from ~/.openclaw/openclaw.json',c:'term-ok',d:200},
+        {t:'[OK] Gateway WebSocket server starting on port 18789',c:'term-ok',d:350},
+        {t:'[OK] HTTP server bound to 0.0.0.0:18789',c:'term-ok',d:150},
+        {t:'[OK] Channel: Telegram connected (grammy v1.40)',c:'term-ok',d:300},
+        {t:'[OK] Channel: WhatsApp connected (Baileys 7.0)',c:'term-ok',d:250},
+        {t:'[OK] Channel: Discord connected (discord.js)',c:'term-ok',d:200},
+        {t:'[OK] Channel: iMessage connected (BlueBubbles)',c:'term-ok',d:180},
+        {t:'[OK] Agent Runtime: Pi initialized (Claude Opus 4.6)',c:'term-ok',d:400},
+        {t:'[OK] Skills: 54 skills loaded (workspace > managed > bundled)',c:'term-ok',d:250},
+        {t:'[OK] Auth: token + tailscale enabled',c:'term-ok',d:150},
+        {t:'[OK] Cron service started (3 jobs)',c:'term-ok',d:180},
+        {t:'',c:'',d:100},
+        {t:'Gateway ready. Listening on ws://0.0.0.0:18789',c:'term-hl',d:0},
+        {t:'Press \u2192 to begin.',c:'term-out',d:0}
+      ];
+      var delay=100;
+      lines.forEach(function(l){delay+=l.d;setTimeout(function(){var div=document.createElement('div');div.className=l.c;div.textContent=l.t;body.appendChild(div);body.scrollTop=body.scrollHeight;},delay);});
+      addScore(3);
+    }else{
+      var div=document.createElement('div');div.className='term-err';div.textContent='Command not found: '+v+'. Try "openclaw gateway"';document.getElementById('bootBody').appendChild(div);this.value='';
+    }
+  }
+  if(e.key==='Tab'){e.preventDefault();this.value='openclaw gateway';}
+});
+
+// ========== SLIDE 2: DEPTH ==========
+function updateDepth(v){
+  var labels=['External Layer \u2014 Messaging Apps','Channel Layer \u2014 Normalization','Gateway \u2014 Central Hub','Agent Runtime \u2014 Pi Engine','State Layer \u2014 File Persistence'];
+  var pct=parseInt(v);
+  var layerIdx=Math.min(4,Math.floor(pct/20));
+  document.getElementById('depthLabel').textContent=labels[layerIdx]+' \u2014 '+pct+'%';
+  for(var i=0;i<=4;i++){
+    var el=document.getElementById('dl'+i);
+    if(i<=layerIdx){el.classList.add('visible');el.classList.remove('hidden');}
+    else{el.classList.remove('visible');el.classList.add('hidden');}
+  }
+  if(!window._depthScored&&pct>80){window._depthScored=true;addScore(2);}
+}
+
+// ========== SLIDE 3: TRACE ==========
+var traceData=[
+  {title:'WhatsApp Webhook',data:'{\n  "entry": [{\n    "changes": [{\n      "value": {\n        "messages": [{\n          "from": "+1234567890",\n          "type": "text",\n          "text": {"body":"Create hello.py"}\n        }]\n      }\n    }]\n  }]\n}'},
+  {title:'Normalized Message',data:'{\n  "sender": "+1234567890",\n  "channel": "whatsapp",\n  "text": "Create hello.py",\n  "timestamp": "2026-02-10T14:30:00Z"\n}'},
+  {title:'Gateway Routing Decision',data:'{\n  "route": "default",\n  "agentId": "default",\n  "sessionKey": "whatsapp:+1234567890:main",\n  "auth": "approved (loopback)",\n  "method": "chat.send"\n}'},
+  {title:'Pi Agent Context',data:'{\n  "systemPrompt": "[1200 tokens]",\n  "sessionHistory": "[3 prior messages]",\n  "skills": ["present","coding-agent","github"],\n  "model": "claude-opus-4-6",\n  "tools": ["exec","read","write","edit","browser"]\n}'},
+  {title:'LLM Response (Tool Call)',data:'{\n  "type": "tool_use",\n  "name": "exec",\n  "input": {\n    "command": "echo \'print(hello world)\' > hello.py"\n  }\n}'},
+  {title:'Tool Execution Result',data:'{\n  "tool": "exec",\n  "exitCode": 0,\n  "stdout": "",\n  "duration_ms": 12\n}'}
+];
+var traceRunning=false;
+function runTrace(){
+  if(traceRunning)return;traceRunning=true;
+  var p=document.getElementById('traceP');p.style.display='block';
+  var nodes=[0,1,2,3,4,5,3,2,1,0];
+  var i=0;
+  function moveNext(){
+    if(i>=nodes.length){traceRunning=false;p.style.display='none';addScore(3);return;}
+    var n=document.getElementById('tn'+nodes[i]);
+    var r=n.getBoundingClientRect();var c=document.getElementById('traceCanvas').getBoundingClientRect();
+    p.style.left=(r.left-c.left+r.width/2-6)+'px';p.style.top=(r.top-c.top+r.height/2-6)+'px';
+    n.classList.add('lit');
+    if(nodes[i]!==nodes[Math.max(0,i-1)]){setTimeout(function(){n.classList.remove('lit');},800);}
+    i++;setTimeout(moveNext,500);
+  }
+  moveNext();
+}
+function inspectTrace(idx){
+  if(idx>=traceData.length)return;
+  var insp=document.getElementById('traceInsp');insp.classList.add('show');
+  document.getElementById('traceInspTitle').textContent='Stage '+(idx+1)+': '+traceData[idx].title;
+  document.getElementById('traceInspBody').textContent=traceData[idx].data;
+  addScore(1);
+}
+
+// ========== SLIDE 4: FRAME INSPECTOR ==========
+var frameTypes=['auth','chat','chat','tool','sys','chat','tool','sys','chat','chat'];
+var frameDefs={
+  auth:{badge:'auth',summary:'connect \u2192 auth token validated',detail:'{\n  "type": "request",\n  "id": "req_001",\n  "method": "connect",\n  "params": {\n    "token": "oc_pat_...redacted...",\n    "clientId": "cli_macbook",\n    "version": "2026.2.9"\n  }\n}\n\nResponse:\n{\n  "type": "response",\n  "id": "req_001",\n  "result": {"ok": true, "method": "token"}\n}'},
+  chat:{badge:'chat',summary:'chat.send \u2192 "What is quantum computing?"',detail:'{\n  "type": "request",\n  "id": "req_042",\n  "method": "chat.send",\n  "params": {\n    "sessionKey": "default:session:main",\n    "message": {"role":"user","content":"What is quantum computing?"}\n  }\n}\n\nStreamed events:\n  chat.delta \u2192 {"token":"Quantum"}\n  chat.delta \u2192 {"token":" computing"}\n  chat.delta \u2192 {"token":" is..."}'},
+  tool:{badge:'tool',summary:'tool_call \u2192 exec: ls -la /workspace',detail:'{\n  "type": "event",\n  "event": "agent.tool_call",\n  "payload": {\n    "tool": "exec",\n    "input": {"command": "ls -la /workspace"},\n    "status": "running"\n  }\n}\n\nResult:\n{\n  "event": "agent.tool_result",\n  "payload": {"exitCode": 0, "duration_ms": 45}\n}'},
+  sys:{badge:'sys',summary:'heartbeat \u2192 ping/pong',detail:'{\n  "type": "event",\n  "event": "heartbeat",\n  "payload": {\n    "timestamp": "2026-02-10T14:30:15Z",\n    "uptime_s": 86423,\n    "connections": 3\n  }\n}'},
+  err:{badge:'err',summary:'MALFORMED FRAME \u2192 parse error',detail:'Raw bytes: 7b 22 74 79 70 65 22 3a 20 22 72 65 71\n\nDecoded: {"type": "req   \u2190 TRUNCATED\n\nError:\n{\n  "type": "error",\n  "code": -32700,\n  "message": "Parse error: Unexpected end of JSON"\n}'}
+};
+var frameFilter='all',frameIdx=0;
+function addFrame(type){
+  var log=document.getElementById('frameLog');
+  var f=frameDefs[type];
+  var div=document.createElement('div');
+  div.className='frame-entry';div.dataset.type=type;div.dataset.idx=frameIdx++;
+  div.innerHTML='<span class="frame-badge '+f.badge+'">'+type+'</span><span class="dim" style="font-size:11px">'+f.summary+'</span>';
+  div.onclick=function(){
+    document.querySelectorAll('.frame-entry').forEach(function(e){e.classList.remove('selected');});
+    this.classList.add('selected');
+    document.getElementById('frameDetail').innerHTML='<pre style="white-space:pre-wrap;font-size:12px;color:var(--text);margin:0">'+f.detail+'</pre>';
+    addScore(1);
+  };
+  if(frameFilter!=='all'&&type!==frameFilter)div.style.display='none';
+  log.appendChild(div);log.scrollTop=log.scrollHeight;
+}
+function filterFrames(type,btn){
+  frameFilter=type;
+  document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  document.querySelectorAll('.frame-entry').forEach(function(e){
+    e.style.display=(type==='all'||e.dataset.type===type)?'flex':'none';
+  });
+}
+function injectCorrupt(){addFrame('err');addScore(2);}
+var frameInterval;
+function startFrames(){frameInterval=setInterval(function(){var t=frameTypes[Math.floor(Math.random()*frameTypes.length)];addFrame(t);},1200);}
+
+// ========== COMMON DRAG HELPERS ==========
+function dragStartEv(e){e.dataTransfer.setData('text/plain',e.target.id);e.target.classList.add('dragging');}
+function dragOverEv(e){e.preventDefault();e.currentTarget.classList.add('over');}
+function dragLeaveEv(e){e.currentTarget.classList.remove('over');}
+
+// ========== SLIDE 5: API EXPLORER ==========
+var apiMethods=[
+  {cat:'chat',name:'chat.send',desc:'Send a message to an agent session',params:'sessionKey, message',ret:'messageId'},
+  {cat:'chat',name:'chat.stream',desc:'Stream a response token by token',params:'sessionKey',ret:'AsyncIterable<delta>'},
+  {cat:'chat',name:'chat.cancel',desc:'Cancel an in-progress generation',params:'sessionKey',ret:'ok'},
+  {cat:'chat',name:'chat.history',desc:'Get message history for a session',params:'sessionKey, limit?',ret:'messages[]'},
+  {cat:'chat',name:'chat.regenerate',desc:'Regenerate the last assistant message',params:'sessionKey',ret:'messageId'},
+  {cat:'session',name:'session.list',desc:'List all sessions for an agent',params:'agentId?',ret:'sessions[]'},
+  {cat:'session',name:'session.create',desc:'Create a new session',params:'agentId, title?',ret:'sessionKey'},
+  {cat:'session',name:'session.delete',desc:'Delete a session and its transcript',params:'sessionKey',ret:'ok'},
+  {cat:'session',name:'session.rename',desc:'Rename a session',params:'sessionKey, title',ret:'ok'},
+  {cat:'session',name:'session.compact',desc:'Trigger session compaction',params:'sessionKey',ret:'tokensSaved'},
+  {cat:'agent',name:'agent.list',desc:'List all configured agents',params:'\u2014',ret:'agents[]'},
+  {cat:'agent',name:'agent.get',desc:'Get agent configuration',params:'agentId',ret:'AgentConfig'},
+  {cat:'agent',name:'agent.create',desc:'Create a new agent',params:'name, model',ret:'agentId'},
+  {cat:'agent',name:'agent.update',desc:'Update agent configuration',params:'agentId, changes',ret:'ok'},
+  {cat:'agent',name:'agent.delete',desc:'Delete an agent',params:'agentId',ret:'ok'},
+  {cat:'config',name:'config.get',desc:'Get full gateway configuration',params:'\u2014',ret:'Config (JSON5)'},
+  {cat:'config',name:'config.set',desc:'Update configuration values',params:'path, value',ret:'ok'},
+  {cat:'config',name:'config.reload',desc:'Hot-reload config from disk',params:'\u2014',ret:'ok'},
+  {cat:'channel',name:'channel.list',desc:'List connected channels',params:'\u2014',ret:'channels[]'},
+  {cat:'channel',name:'channel.status',desc:'Get channel connection status',params:'channelId',ret:'status'},
+  {cat:'channel',name:'channel.reconnect',desc:'Force reconnect a channel',params:'channelId',ret:'ok'},
+  {cat:'channel',name:'channel.send',desc:'Send a message through a channel',params:'channelId, chatId, content',ret:'ok'},
+  {cat:'skill',name:'skill.list',desc:'List all loaded skills with precedence',params:'agentId?',ret:'skills[]'},
+  {cat:'skill',name:'skill.get',desc:'Get skill content (SKILL.md)',params:'skillName',ret:'content'},
+  {cat:'skill',name:'skill.install',desc:'Install a skill from URL or path',params:'source',ret:'ok'},
+  {cat:'skill',name:'skill.remove',desc:'Remove a managed skill',params:'skillName',ret:'ok'},
+  {cat:'cron',name:'cron.list',desc:'List scheduled jobs',params:'\u2014',ret:'jobs[]'},
+  {cat:'cron',name:'cron.create',desc:'Create a scheduled job',params:'schedule, agent, message',ret:'jobId'},
+  {cat:'cron',name:'cron.delete',desc:'Delete a scheduled job',params:'jobId',ret:'ok'},
+  {cat:'cron',name:'cron.trigger',desc:'Manually trigger a cron job',params:'jobId',ret:'ok'},
+  {cat:'system',name:'system.status',desc:'Gateway health and uptime',params:'\u2014',ret:'{uptime, connections, version}'},
+  {cat:'system',name:'system.connections',desc:'List active WebSocket connections',params:'\u2014',ret:'connections[]'},
+  {cat:'system',name:'system.logs',desc:'Stream gateway logs',params:'level?, limit?',ret:'logs[]'},
+  {cat:'system',name:'system.shutdown',desc:'Gracefully shutdown the gateway',params:'\u2014',ret:'ok'}
+];
+var apiCatFilter='all';
+function buildAPIList(){
+  var list=document.getElementById('apiList');list.innerHTML='';
+  var search=document.getElementById('apiSearch').value.toLowerCase();
+  var filtered=apiMethods.filter(function(m){
+    if(apiCatFilter!=='all'&&m.cat!==apiCatFilter)return false;
+    if(search&&m.name.toLowerCase().indexOf(search)===-1&&m.desc.toLowerCase().indexOf(search)===-1)return false;
+    return true;
+  });
+  var catColors={chat:'var(--green)',session:'var(--violet)',agent:'var(--blue)',config:'var(--gold)',channel:'var(--amber)',skill:'var(--green)',cron:'var(--dim)',system:'var(--red)'};
+  filtered.forEach(function(m){
+    var card=document.createElement('div');card.className='api-card';
+    card.innerHTML='<div class="api-card-head" onclick="this.parentElement.classList.toggle(\'open\');addScore(1)"><span><span style="color:'+(catColors[m.cat]||'var(--dim)')+'">'+m.cat+'.</span>'+m.name.split('.')[1]+'</span><span class="dim" style="font-size:11px">'+m.desc+'</span></div><div class="api-card-body"><div style="margin-bottom:6px"><strong>Params:</strong> <span class="mono">'+m.params+'</span></div><div><strong>Returns:</strong> <span class="mono" style="color:var(--green)">'+m.ret+'</span></div><div style="margin-top:8px;padding:8px;background:var(--bg);border-radius:4px;font-family:monospace;font-size:11px">{"type":"request","id":"req_001","method":"'+m.name+'","params":{...}}</div></div>';
+    list.appendChild(card);
+  });
+}
+function filterAPI(){buildAPIList();}
+function filterAPICat(cat,btn){
+  apiCatFilter=cat;
+  document.querySelectorAll('.api-cat').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  buildAPIList();
+}
+
+// ========== SLIDE 6: NORMALIZER ==========
+var normPlatforms=[
+  {name:'Telegram',raw:'{\n  "update_id": 123456,\n  "message": {\n    "message_id": 42,\n    "from": {"id": 987654321, "first_name": "Mike"},\n    "chat": {"id": -100123456},\n    "date": 1707580800,\n    "text": "Hello from Telegram"\n  }\n}',fields:[
+    {id:'nf0',text:'987654321',slot:'sender',label:'from.id'},
+    {id:'nf1',text:'"telegram"',slot:'channel',label:'platform'},
+    {id:'nf2',text:'"Hello from Telegram"',slot:'text',label:'message.text'},
+    {id:'nf3',text:'-100123456',slot:'chatId',label:'chat.id'},
+    {id:'nf4',text:'1707580800',slot:'timestamp',label:'message.date'}
+  ]},
+  {name:'WhatsApp',raw:'{\n  "entry": [{\n    "changes": [{\n      "value": {\n        "messages": [{\n          "from": "+14155551234",\n          "timestamp": "1707580800",\n          "text": {"body": "Hello from WhatsApp"}\n        }],\n        "metadata": {"phone_number_id": "123"}\n      }\n    }]\n  }]\n}',fields:[
+    {id:'nf0',text:'+14155551234',slot:'sender',label:'messages[0].from'},
+    {id:'nf1',text:'"whatsapp"',slot:'channel',label:'platform'},
+    {id:'nf2',text:'"Hello from WhatsApp"',slot:'text',label:'text.body'},
+    {id:'nf3',text:'"123"',slot:'chatId',label:'phone_number_id'},
+    {id:'nf4',text:'1707580800',slot:'timestamp',label:'timestamp'}
+  ]},
+  {name:'Discord',raw:'{\n  "t": "MESSAGE_CREATE",\n  "d": {\n    "id": "1234567890",\n    "channel_id": "999888777",\n    "author": {"id": "111222333", "username": "mike_dev"},\n    "content": "Hello from Discord",\n    "timestamp": "2026-02-10T14:30:00Z"\n  }\n}',fields:[
+    {id:'nf0',text:'111222333',slot:'sender',label:'author.id'},
+    {id:'nf1',text:'"discord"',slot:'channel',label:'platform'},
+    {id:'nf2',text:'"Hello from Discord"',slot:'text',label:'d.content'},
+    {id:'nf3',text:'999888777',slot:'chatId',label:'channel_id'},
+    {id:'nf4',text:'2026-02-10T14:30:00Z',slot:'timestamp',label:'d.timestamp'}
+  ]}
+];
+var normTab=0,normCorrect=0;
+function switchNormTab(idx,btn){
+  normTab=idx;normCorrect=0;
+  document.querySelectorAll('.norm-tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  document.getElementById('normScore').textContent='0/5 mapped';
+  renderNormTab();
+}
+function renderNormTab(){
+  var p=normPlatforms[normTab];
+  document.getElementById('normRaw').innerHTML='<pre style="margin:0;color:var(--text)">'+p.raw+'</pre>';
+  var fields=document.getElementById('normFields');fields.innerHTML='';
+  p.fields.forEach(function(f){
+    var el=document.createElement('span');el.className='norm-field';el.draggable=true;el.id=f.id+'_'+normTab;
+    el.dataset.slot=f.slot;el.dataset.label=f.label;
+    el.textContent=f.label+': '+f.text;
+    el.ondragstart=function(e){e.dataTransfer.setData('text/plain',this.id);};
+    fields.appendChild(el);
+  });
+  document.querySelectorAll('.norm-slot').forEach(function(s){s.classList.remove('filled');s.innerHTML='<span class="norm-slot-label">'+s.dataset.slot+':</span>';});
+}
+function dropNorm(e){
+  e.preventDefault();e.currentTarget.classList.remove('over');
+  var id=e.dataTransfer.getData('text/plain');
+  var field=document.getElementById(id);if(!field)return;
+  var targetSlot=e.currentTarget.dataset.slot;
+  if(targetSlot===field.dataset.slot){
+    e.currentTarget.classList.add('filled');
+    e.currentTarget.innerHTML='<span class="norm-slot-label">'+targetSlot+':</span><span style="color:var(--green)">'+field.textContent+'</span>';
+    field.classList.add('placed');field.draggable=false;
+    normCorrect++;addScore(2);
+    document.getElementById('normScore').textContent=normCorrect+'/5 mapped';
+  }else{
+    field.style.borderColor='var(--red)';setTimeout(function(){field.style.borderColor='';},600);
+  }
+}
+
+// ========== SLIDE 7: ROUTING ==========
+var routeCorrect=0;
+function dropMsg(e){
+  e.preventDefault();e.currentTarget.classList.remove('over');
+  var id=e.dataTransfer.getData('text/plain');var item=document.getElementById(id);
+  if(!item||!item.dataset.answer)return;
+  var target=e.currentTarget.dataset.target;
+  var correct=item.dataset.answer===target;
+  item.classList.remove('dragging');
+  item.classList.add(correct?'correct':'wrong');
+  item.draggable=false;
+  if(correct){routeCorrect++;addScore(2);}
+  else{setTimeout(function(){item.classList.remove('wrong');},600);}
+  document.getElementById('routeScore').textContent=routeCorrect+'/6 correct';
+}
+
+// ========== SLIDE 8: AUTH ==========
+var authSolved=0;
+function authWin(idx){
+  var d=document.getElementById('ad'+idx);d.classList.add('solved');
+  d.querySelector('.lock').innerHTML='&#x1f513;';
+  authSolved++;addScore(2);
+  document.getElementById('authScore').textContent=authSolved+'/5 unlocked';
+}
+var token='oc_'+Math.random().toString(36).slice(2,10);
+document.getElementById('tokenHint').textContent=token;
+setTimeout(function(){document.getElementById('tokenHint').style.display='none';},3000);
+function checkToken(){if(document.getElementById('tokenInput').value===token)authWin(0);else document.getElementById('tokenInput').style.borderColor='var(--red)';}
+function checkPwd(el,ok){el.classList.add(ok?'correct':'wrong');if(ok)authWin(1);el.parentElement.querySelectorAll('.auth-opt').forEach(function(b){b.disabled=true;});}
+function checkTS(el,ok){el.classList.add(ok?'correct':'wrong');if(ok)authWin(2);el.parentElement.querySelectorAll('.auth-opt').forEach(function(b){b.disabled=true;});}
+function checkSig(){
+  var slots=document.getElementById('sigSlots');
+  var items=Array.from(slots.querySelectorAll('.drag-item'));
+  var order=items.map(function(i){return parseInt(i.dataset.sig);});
+  if(order[0]===0&&order[1]===1&&order[2]===2)authWin(3);
+  else items.forEach(function(i){i.classList.add('wrong');});
+  setTimeout(function(){items.forEach(function(i){i.classList.remove('wrong');});},600);
+}
+function checkLoop(el){el.classList.add('correct');authWin(4);}
+
+// ========== SLIDE 9: DEBUGGER ==========
+var dbgCur=-1,dbgTotal=7;
+var dbgDataContent=[
+  'User input:\n"Create a file called hello.py"\n\nChannel: Telegram DM\nSession: default:session:main',
+  'System prompt: [1200 tokens]\nSession history: 3 prior messages [850 tokens]\nSkills loaded: coding-agent, present, github + 9 more\n\nTotal context: ~4200 tokens',
+  'API Call: POST https://api.anthropic.com/v1/messages\nModel: claude-opus-4-6\nMax tokens: 8192\nTools: [exec, read, write, edit, browser]\n\nLatency: 1.8s',
+  'Response parsed:\n{\n  "type": "tool_use",\n  "name": "exec",\n  "input": {"command": "echo \'print(hello world)\' > hello.py"}\n}\n\nDecision: TOOL CALL \u2192 execute and loop',
+  'Tool: exec\nCommand: echo "print(hello world)" > hello.py\nResult: exit_code: 0, duration: 12ms\n\nFile created: /workspace/hello.py',
+  'Second LLM call:\nPrevious: 4200 tokens + tool_call: 80 + result: 120\n= Total: 4400 tokens\n\nLatency: 0.9s (shorter output)',
+  'Final response:\n"I\'ve created hello.py with a hello world script."\n\nTokens: 4400 input + 42 output = 4442\nCost: ~$0.02\nStreamed via 5 chat.delta events'
+];
+function debugStep(){
+  if(dbgCur>=dbgTotal-1)return;
+  dbgCur++;
+  var steps=document.querySelectorAll('.debug-step');
+  steps.forEach(function(s,i){s.classList.remove('current');if(i<dbgCur)s.classList.add('done');if(i===dbgCur)s.classList.add('current');});
+  document.getElementById('dbgData').textContent=dbgDataContent[dbgCur];
+  document.getElementById('dbgStatus').textContent='Step '+(dbgCur+1)+'/'+dbgTotal;
+  addScore(1);
+}
+function debugContinue(){
+  var steps=document.querySelectorAll('.debug-step');
+  var intv=setInterval(function(){
+    if(dbgCur>=dbgTotal-1){clearInterval(intv);return;}
+    var nextBP=Array.from(steps).findIndex(function(s,i){return i>dbgCur&&s.classList.contains('bp');});
+    dbgCur++;
+    steps.forEach(function(s,i){s.classList.remove('current');if(i<dbgCur)s.classList.add('done');if(i===dbgCur)s.classList.add('current');});
+    document.getElementById('dbgData').textContent=dbgDataContent[dbgCur];
+    document.getElementById('dbgStatus').textContent='Step '+(dbgCur+1)+'/'+dbgTotal;
+    if(nextBP===dbgCur)clearInterval(intv);
+  },400);
+}
+function debugReset(){dbgCur=-1;document.querySelectorAll('.debug-step').forEach(function(s){s.classList.remove('current','done');});document.getElementById('dbgData').textContent='Click Step to begin.';document.getElementById('dbgStatus').textContent='Ready \u2014 Step 0/'+dbgTotal;}
+function toggleBP(el){el.classList.toggle('bp');}
+
+// ========== SLIDE 10: SKILLS ==========
+function updateSkillPreview(){
+  var txt=document.getElementById('skillEditor').value;
+  var nameMatch=txt.match(/name:\s*(.+)/);
+  var descMatch=txt.match(/description:\s*(.+)/);
+  var hintMatch=txt.match(/argument-hint:\s*(.+)/);
+  var name=nameMatch?nameMatch[1].trim():'(unnamed)';
+  var desc=descMatch?descMatch[1].trim():'(no description)';
+  var hint=hintMatch?hintMatch[1].replace(/"/g,'').trim():'';
+  var body=txt.replace(/---[\s\S]*?---/,'').trim();
+  var lines=body.split('\n').filter(function(l){return l.trim();}).slice(0,6);
+  document.getElementById('skillPreview').innerHTML=
+    '<div style="margin-bottom:10px"><strong class="accent">/'+name+'</strong>'+(hint?' <span class="dim">'+hint+'</span>':'')+'<br><span class="dim" style="font-size:12px">'+desc+'</span></div>'+
+    '<div style="font-size:12px;color:var(--dim)">Injected into system prompt as:</div>'+
+    '<div class="mono" style="font-size:11px;margin-top:6px;padding:10px;background:var(--bg);border-radius:6px;line-height:1.6">'+lines.map(function(l){return '<div>'+l.replace(/</g,'&lt;')+'</div>';}).join('')+'</div>';
+  addScore(1);
+}
+
+// ========== SLIDE 11: TOOL WORKBENCH ==========
+var wbTools=0,wbTokens=0;
+function switchWBTab(idx,btn){
+  document.querySelectorAll('.wb-tab').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('.wb-panel').forEach(function(p){p.classList.remove('active');});
+  btn.classList.add('active');
+  document.getElementById('wbp'+idx).classList.add('active');
+}
+var wbBashCmds={'ls':'-rw-r--r--  hello.py\n-rw-r--r--  README.md\ndrwxr-xr-x  src/','pwd':'/workspace','date':'Tue Feb 17 07:30:00 PST 2026','whoami':'openclaw','cat hello.py':'print("hello world")','echo hello':'hello','uname -a':'Darwin openclaw 25.2.0 arm64','node --version':'v22.12.0','which openclaw':'/usr/local/bin/openclaw'};
+function runWBBash(){
+  var input=document.getElementById('wbBashIn');var cmd=input.value.trim();if(!cmd)return;input.value='';
+  var body=document.getElementById('wbBash');
+  body.innerHTML+='<div><span class="term-prompt">$ </span><span class="term-cmd">'+cmd+'</span></div>';
+  var out=wbBashCmds[cmd]||('bash: '+cmd.split(' ')[0]+': command not found');
+  body.innerHTML+='<div class="term-out">'+out+'</div>';
+  body.scrollTop=body.scrollHeight;
+  wbTools++;wbTokens+=Math.floor(50+Math.random()*100);updateWBCounter();addScore(1);
+}
+function runWBBrowse(){
+  var input=document.getElementById('wbBrowseIn');var url=input.value.trim();if(!url)return;input.value='';
+  document.getElementById('wbPage').innerHTML='<h3 style="margin:0 0 8px;color:#333">'+url+'</h3><p style="margin:0;color:#666">Content extracted: 1,247 chars, 3 links</p>';
+  wbTools++;wbTokens+=Math.floor(200+Math.random()*300);updateWBCounter();addScore(1);
+}
+function wbFileAction(type){
+  var body=document.getElementById('wbFiles');
+  if(type==='read')body.innerHTML+='<div style="margin:4px 0;color:var(--green)">[read] hello.py \u2192 print("hello world")</div>';
+  if(type==='read2')body.innerHTML+='<div style="margin:4px 0;color:var(--green)">[read] README.md \u2192 # OpenClaw Workspace...</div>';
+  if(type==='ls')body.innerHTML+='<div style="margin:4px 0;color:var(--blue)">[ls] 2 files, 1 directory</div>';
+  wbTools++;wbTokens+=Math.floor(30+Math.random()*50);updateWBCounter();addScore(1);
+}
+function runWBFile(){
+  var input=document.getElementById('wbFileIn');var cmd=input.value.trim();if(!cmd)return;input.value='';
+  var body=document.getElementById('wbFiles');
+  if(cmd.indexOf('create ')===0)body.innerHTML+='<div class="ftree-item ftree-file" style="margin-left:16px;color:var(--green)">'+cmd.replace('create ','')+' (created)</div>';
+  else if(cmd.indexOf('delete ')===0)body.innerHTML+='<div style="margin:4px 0;color:var(--red)">[deleted] '+cmd.replace('delete ','')+'</div>';
+  wbTools++;wbTokens+=Math.floor(20+Math.random()*30);updateWBCounter();addScore(1);
+}
+function runWBAgent(){
+  var input=document.getElementById('wbAgentIn');var task=input.value.trim();if(!task)return;input.value='';
+  var body=document.getElementById('wbAgent');
+  body.innerHTML+='<div style="color:var(--green);margin:4px 0">[spawn] Sub-agent for: "'+task+'"</div>';
+  setTimeout(function(){body.innerHTML+='<div style="color:var(--violet);margin:4px 0">[sub-agent] Using claude-sonnet-4-5 (cost-optimized)</div>';},400);
+  setTimeout(function(){body.innerHTML+='<div style="color:var(--green);margin:4px 0">[sub-agent] Task completed. Result merged.</div>';},1200);
+  wbTools++;wbTokens+=Math.floor(500+Math.random()*1000);updateWBCounter();addScore(2);
+}
+function updateWBCounter(){
+  document.getElementById('wbToolCount').textContent=wbTools;
+  document.getElementById('wbTokenCount').textContent=wbTokens.toLocaleString();
+  document.getElementById('wbCost').textContent='$'+(wbTokens*0.000015).toFixed(4);
+}
+
+// ========== SLIDE 12: MULTI-AGENT ==========
+var maScenarios=[
+  {name:'Simple Delegation',nodes:[{id:'ma0',label:'Gateway',x:10,y:40,color:'var(--green)'},{id:'ma1',label:'Default Agent\n(Opus 4.6)',x:45,y:40,color:'var(--violet)'},{id:'ma2',label:'Sub-Agent\n(Sonnet 4.5)',x:80,y:40,color:'var(--blue)'}],flow:[[0,1],[1,2],[2,1],[1,0]]},
+  {name:'Parallel Fan-Out',nodes:[{id:'ma0',label:'Gateway',x:10,y:40,color:'var(--green)'},{id:'ma1',label:'Coordinator\n(Opus 4.6)',x:38,y:40,color:'var(--violet)'},{id:'ma2',label:'Research\n(Sonnet)',x:68,y:15,color:'var(--blue)'},{id:'ma3',label:'Code\n(Sonnet)',x:68,y:40,color:'var(--amber)'},{id:'ma4',label:'Review\n(Haiku)',x:68,y:65,color:'var(--gold)'}],flow:[[0,1],[1,2],[1,3],[1,4],[2,1],[3,1],[4,1],[1,0]]},
+  {name:'Chain Pipeline',nodes:[{id:'ma0',label:'Gateway',x:5,y:40,color:'var(--green)'},{id:'ma1',label:'Intake\n(Haiku)',x:25,y:40,color:'var(--gold)'},{id:'ma2',label:'Research\n(Sonnet)',x:45,y:40,color:'var(--blue)'},{id:'ma3',label:'Draft\n(Opus)',x:65,y:40,color:'var(--violet)'},{id:'ma4',label:'Review\n(Opus)',x:85,y:40,color:'var(--amber)'}],flow:[[0,1],[1,2],[2,3],[3,4],[4,0]]}
+];
+var maCurrentScenario=0;
+function loadMA(idx){
+  maCurrentScenario=idx;
+  var canvas=document.getElementById('maCanvas');var s=maScenarios[idx];canvas.innerHTML='';
+  s.nodes.forEach(function(n){
+    var div=document.createElement('div');div.className='ma-node';div.id=n.id;
+    div.style.left=n.x+'%';div.style.top=n.y+'%';div.style.borderColor=n.color;
+    div.innerHTML=n.label.replace('\n','<br><span class="ma-model" style="color:'+n.color+'">');
+    if(n.label.indexOf('\n')!==-1)div.innerHTML+='</span>';
+    canvas.appendChild(div);
+  });
+  addScore(1);
+}
+function _mkP(canvas,color){
+  var p=document.createElement('div');p.dataset.particle='1';
+  p.style.cssText='position:absolute;width:12px;height:12px;border-radius:50%;background:'+(color||'var(--gold)')+';box-shadow:0 0 14px '+(color||'var(--gold)')+';z-index:10;transition:all .4s ease;opacity:0;';
+  canvas.appendChild(p);return p;
+}
+function _posP(p,el,canvas){
+  var r=el.getBoundingClientRect(),cr=canvas.getBoundingClientRect();
+  p.style.left=(r.left-cr.left+r.width/2-6)+'px';
+  p.style.top=(r.top-cr.top+r.height/2-6)+'px';
+}
+function runMA(){
+  var s=maScenarios[maCurrentScenario];var canvas=document.getElementById('maCanvas');
+  canvas.querySelectorAll('[data-particle]').forEach(function(p){p.remove();});
+  if(maCurrentScenario===1){runMAParallel(s,canvas);return;}
+  var particle=_mkP(canvas);
+  var startEl=document.getElementById(s.nodes[s.flow[0][0]].id);
+  if(startEl){_posP(particle,startEl,canvas);particle.style.opacity='1';}
+  var step=0;
+  function animateStep(){
+    if(step>=s.flow.length){setTimeout(function(){particle.remove();},300);addScore(2);return;}
+    var fromEl=document.getElementById(s.nodes[s.flow[step][0]].id);
+    var toEl=document.getElementById(s.nodes[s.flow[step][1]].id);
+    if(!fromEl||!toEl){step++;setTimeout(animateStep,100);return;}
+    fromEl.classList.add('active');_posP(particle,toEl,canvas);
+    setTimeout(function(){fromEl.classList.remove('active');toEl.classList.add('active');setTimeout(function(){toEl.classList.remove('active');},300);},400);
+    step++;setTimeout(animateStep,600);
+  }
+  setTimeout(animateStep,200);
+}
+function runMAParallel(s,canvas){
+  var colors=['var(--blue)','var(--amber)','var(--gold)'];
+  var gw=document.getElementById('ma0'),coord=document.getElementById('ma1');
+  var p0=_mkP(canvas,'var(--green)');_posP(p0,gw,canvas);p0.style.opacity='1';
+  setTimeout(function(){gw.classList.add('active');_posP(p0,coord,canvas);setTimeout(function(){gw.classList.remove('active');coord.classList.add('active');},400);},200);
+  setTimeout(function(){
+    p0.style.opacity='0';
+    var targets=['ma2','ma3','ma4'];
+    var parts=targets.map(function(tid,i){
+      var p=_mkP(canvas,colors[i]);_posP(p,coord,canvas);p.style.opacity='1';
+      setTimeout(function(){_posP(p,document.getElementById(tid),canvas);setTimeout(function(){document.getElementById(tid).classList.add('active');},400);},50);
+      return p;
+    });
+    coord.classList.remove('active');
+    setTimeout(function(){
+      targets.forEach(function(t){document.getElementById(t).classList.remove('active');});
+      parts.forEach(function(p){_posP(p,coord,canvas);});
+      setTimeout(function(){
+        coord.classList.add('active');
+        setTimeout(function(){
+          parts.forEach(function(p){p.style.opacity='0';setTimeout(function(){p.remove();},400);});
+          coord.classList.remove('active');
+          var pf=_mkP(canvas,'var(--green)');_posP(pf,coord,canvas);pf.style.opacity='1';
+          setTimeout(function(){_posP(pf,gw,canvas);setTimeout(function(){gw.classList.add('active');setTimeout(function(){gw.classList.remove('active');pf.remove();p0.remove();},500);},400);},200);
+        },400);
+      },400);
+    },1200);
+  },900);
+  addScore(2);
+}
+
+// ========== SLIDE 13: FILE TREE ==========
+var fileTreeData={'~/.openclaw/':{type:'dir',children:{
+  'openclaw.json':{type:'file',content:'// OpenClaw Configuration (JSON5)\n{\n  gateway: {\n    port: 18789,\n    host: "0.0.0.0",\n    auth: {\n      token: "oc_pat_...",\n      allowTailscale: true\n    }\n  },\n  agents: {\n    list: [{\n      id: "default",\n      name: "Assistant",\n      model: "anthropic/claude-opus-4-6",\n      workspace: "/Users/openclaw/workspace",\n      skills: ["*"]\n    }]\n  },\n  channels: {\n    telegram: { token: "bot_..." },\n    whatsapp: { enabled: true },\n    discord: { token: "disc_..." }\n  }\n}'},
+  'workspace/':{type:'dir',children:{
+    'agents/':{type:'dir',children:{
+      'default/':{type:'dir',children:{
+        'system.md':{type:'file',content:'# Default Agent\n\nYou are a helpful AI assistant running on OpenClaw.\nYou have access to tools for file operations, shell commands,\nbrowser automation, and web search.'},
+        'sessions/':{type:'dir',children:{
+          'session-001.jsonl':{type:'file',content:'{"type":"session","version":1,"id":"session-001"}\n{"role":"user","content":"What time is it?"}\n{"role":"tool_call","name":"exec","input":{"command":"date"}}\n{"role":"tool_result","content":"Mon Feb 17 10:00:02 PST 2026"}\n{"role":"assistant","content":"It\'s Monday, February 17 at 10:00 AM PST."}'}
+        }}
+      }}
+    }}
+  }},
+  'skills/':{type:'dir',children:{
+    'present/':{type:'dir',children:{
+      'SKILL.md':{type:'file',content:'---\nname: present\ndescription: Create interactive HTML presentations\nargument-hint: "[topic]"\n---\n\n# Present\n\nCreate stunning presentations as single HTML files.'}
+    }}
+  }},
+  'cron.json':{type:'file',content:'[\n  {\n    "id": "daily-summary",\n    "schedule": "0 9 * * 1-5",\n    "agent": "default",\n    "message": "Generate my daily summary"\n  }\n]'},
+  'device-auth.json':{type:'file',content:'{\n  "devices": [{\n    "id": "iphone-14-pro",\n    "name": "Mike\'s iPhone",\n    "paired": "2026-01-15T10:00:00Z"\n  }]\n}'}
+}}};
+function renderTree(data,depth){
+  depth=depth||0;var html='';
+  for(var name in data){
+    var info=data[name];var indent='';for(var j=0;j<depth*4;j++)indent+='&nbsp;';
+    if(info.type==='dir'){
+      html+='<div class="ftree-item ftree-folder">'+indent+name+'</div>';
+      if(info.children)html+=renderTree(info.children,depth+1);
+    }else{
+      html+='<div class="ftree-item ftree-file" onclick="viewFile(this)" data-content="'+encodeURIComponent(info.content)+'">'+indent+name+'</div>';
+    }
+  }
+  return html;
+}
+function viewFile(el){
+  var content=decodeURIComponent(el.dataset.content);
+  var viewer=document.getElementById('fileViewer');
+  viewer.style.display='block';
+  viewer.innerHTML='<span style="color:var(--green);font-size:11px">'+el.textContent.trim()+'</span>\n\n'+content.replace(/</g,'&lt;');
+  addScore(1);
+}
+
+// ========== SLIDE 14: SESSION PLAYER ==========
+var sessionEntries=[
+  {role:'system',content:'Session started. Agent: default. Model: claude-opus-4-6',tokens:50},
+  {role:'user',content:'Can you list the files in my workspace?',tokens:120},
+  {role:'assistant',content:'I\'ll check your workspace directory.',tokens:180},
+  {role:'tool-call',content:'exec: ls -la /workspace',tokens:200},
+  {role:'tool-result',content:'total 24\n-rw-r--r-- hello.py\n-rw-r--r-- README.md\ndrwxr-xr-x src/',tokens:350},
+  {role:'assistant',content:'Your workspace contains:\n- hello.py (127 bytes)\n- README.md (890 bytes)\n- src/ directory',tokens:520},
+  {role:'user',content:'Show me hello.py',tokens:560},
+  {role:'tool-call',content:'read: /workspace/hello.py',tokens:580},
+  {role:'tool-result',content:'print("hello world")',tokens:600},
+  {role:'assistant',content:'Here\'s hello.py:\n\n```python\nprint("hello world")\n```',tokens:720}
+];
+var playerPos=0,playing=false,playInterval;
+function renderPlayerEntry(idx){
+  if(idx>=sessionEntries.length)return;
+  var e=sessionEntries[idx];
+  var display=document.getElementById('playerDisplay');
+  var div=document.createElement('div');div.className='player-entry';
+  div.innerHTML='<span class="player-role '+e.role+'">['+e.role+']</span> '+e.content.replace(/\n/g,'<br>');
+  display.appendChild(div);display.scrollTop=display.scrollHeight;
+  document.getElementById('playerTimeline').value=idx;
+  document.getElementById('playerTokens').textContent='Tokens: '+e.tokens.toLocaleString()+' / 200k';
+}
+function togglePlay(){
+  playing=!playing;
+  document.getElementById('playBtn').innerHTML=playing?'&#9646;&#9646; Pause':'&#9654; Play';
+  if(playing){
+    playInterval=setInterval(function(){
+      if(playerPos>=sessionEntries.length-1){togglePlay();return;}
+      playerPos++;renderPlayerEntry(playerPos);
+    },1200);
+    addScore(2);
+  }else{clearInterval(playInterval);}
+}
+function seekPlayer(v){
+  playerPos=parseInt(v);
+  document.getElementById('playerDisplay').innerHTML='';
+  for(var i=0;i<=playerPos;i++)renderPlayerEntry(i);
+}
+
+// ========== SLIDE 15: NETWORK TOPOLOGY ==========
+function traceTopo(){
+  var nodes=['tp0','tp1','tp3','tp4','tp5','tp7','tp5','tp6','tp8','tp6','tp5','tp4','tp3','tp1','tp0'];
+  var labels=['User sends message','Telegram receives','Webhook fires to OpenClaw','Gateway authenticates & routes','Pi agent receives','LLM call to Claude API','Response received','Tool execution needed','Bash command runs','Result captured','Tool result fed back to LLM','Final response routed','Webhook response sent','Platform delivers','User sees reply'];
+  var latencies=['0ms','+50ms','+80ms','+2ms','+5ms','+800ms','+1200ms','+5ms','+12ms','+12ms','+600ms','+2ms','+10ms','+50ms','+100ms'];
+  var i=0;
+  var info=document.getElementById('topoInfo');info.style.display='block';
+  function step(){
+    if(i>=nodes.length){
+      document.querySelectorAll('.topo-node').forEach(function(n){n.classList.remove('lit');});
+      info.innerHTML='<span class="accent">Trace complete!</span> Total round-trip: ~2.9s. LLM API calls dominate at ~1.8s combined.';
+      addScore(3);return;
+    }
+    document.querySelectorAll('.topo-node').forEach(function(n){n.classList.remove('lit');});
+    document.getElementById(nodes[i]).classList.add('lit');
+    info.innerHTML='<span class="accent">Step '+(i+1)+'/'+nodes.length+':</span> '+labels[i]+' <span class="dim">('+latencies[i]+')</span>';
+    i++;setTimeout(step,350);
+  }
+  step();
+}
+
+// ========== SLIDE 16: WATERFALL ==========
+function toggleWFDetail(idx){document.getElementById('wfd'+idx).classList.toggle('show');addScore(1);}
+function updateWF(val){
+  var mult=val/100;
+  document.getElementById('wfMultLabel').textContent=mult.toFixed(1)+'x';
+  document.querySelectorAll('.wf-bar').forEach(function(bar){
+    var baseW=parseFloat(bar.dataset.baseW);
+    bar.style.width=(baseW*mult)+'%';
+  });
+}
+
+// ========== SLIDE 17: PROVIDER COMPARE ==========
+function runProvCompare(){
+  var claudeResp='Quantum entanglement is a phenomenon where two or more particles become correlated in such a way that measuring the quantum state of one instantly determines the state of the other, regardless of distance. This "spooky action at a distance" occurs because entangled particles share a single quantum state described by one wave function.';
+  var gptResp='Quantum entanglement occurs when two particles become linked so that the quantum state of one instantly influences the other, no matter how far apart they are. When you measure one particle, you immediately know the state of its partner. This phenomenon is now a cornerstone of quantum computing and quantum cryptography.';
+  var bodyA=document.getElementById('provA');bodyA.innerHTML='';
+  var bodyB=document.getElementById('provB');bodyB.innerHTML='';
+  var iA=0,iB=0;
+  var intA=setInterval(function(){if(iA>=claudeResp.length){clearInterval(intA);return;}bodyA.textContent+=claudeResp[iA++];},8);
+  setTimeout(function(){var intB=setInterval(function(){if(iB>=gptResp.length){clearInterval(intB);return;}bodyB.textContent+=gptResp[iB++];},10);},200);
+  setTimeout(function(){
+    document.getElementById('provATokens').textContent='342';document.getElementById('provALat').textContent='1.8s';document.getElementById('provACost').textContent='$0.02';
+    document.getElementById('provBTokens').textContent='318';document.getElementById('provBLat').textContent='1.2s';document.getElementById('provBCost').textContent='$0.01';
+  },500);
+  addScore(2);
+}
+function hotSwapProv(){
+  document.getElementById('provA').innerHTML+='<div style="margin-top:8px;padding:6px;background:rgba(251,191,36,.08);border-radius:4px;font-size:11px;color:var(--gold)">[hot-swap] Switching Opus 4.6 \u2192 Sonnet 4.5 for remaining turns. Context preserved.</div>';
+  addScore(1);
+}
+
+// ========== SLIDE 18: DOCKER LAYERS ==========
+var dockerCorrect=0;
+var dockerErrors={'0':'ERROR: Base image must be first.','1':'ERROR: WORKDIR requires FROM first.','2':'ERROR: COPY requires WORKDIR context.','3':'ERROR: npm ci \u2014 package.json not yet copied!','4':'ERROR: COPY . . \u2014 dependencies not installed!','5':'ERROR: EXPOSE must come after app is assembled.'};
+function dropDocker(e){
+  e.preventDefault();e.currentTarget.classList.remove('over');
+  var id=e.dataTransfer.getData('text/plain');var layer=document.getElementById(id);if(!layer)return;
+  var expectedPos=parseInt(e.currentTarget.dataset.pos);
+  var layerOrder=parseInt(layer.dataset.order);
+  if(layerOrder===expectedPos){
+    e.currentTarget.classList.add('filled');e.currentTarget.textContent=layer.textContent;
+    e.currentTarget.style.color='var(--green)';e.currentTarget.style.borderColor='var(--green)';
+    layer.classList.add('placed');layer.draggable=false;layer.classList.add('correct');
+    dockerCorrect++;addScore(2);
+    document.getElementById('dockerScore').textContent=dockerCorrect+'/6 correct';
+    document.getElementById('dockerErr').style.display='none';
+  }else{
+    layer.classList.add('wrong');setTimeout(function(){layer.classList.remove('wrong');},500);
+    var err=document.getElementById('dockerErr');err.style.display='block';
+    err.textContent=dockerErrors[String(expectedPos)]||'ERROR: Wrong layer order.';
+  }
+}
+
+// ========== SLIDE 19: CHAOS ==========
+var chaosState=[false,false,false,false,false];
+var chaosResponses=[
+  ['[WARN] LLM request timeout after 30s','[INFO] Retry 1/3 with exponential backoff (2s)...','[WARN] Retry 1 failed','[INFO] Retry 2/3 (4s)...','[INFO] Falling back to claude-sonnet-4-5','[OK] Fallback model responded in 1.2s'],
+  ['[ERR] Telegram webhook delivery failed: HTTP 502','[INFO] Retry 1/3 in 1s...','[ERR] Retry 1 failed: 502','[INFO] Retry 2/3 in 2s...','[OK] Retry 2 succeeded: HTTP 200'],
+  ['[ERR] ENOSPC: no space left on device','[WARN] Cannot write session transcript','[INFO] Buffering response in memory (max 50MB)','[WARN] Alerting operator: disk critical'],
+  ['[ERR] Auth token expired: oc_pat_... (expired 2h ago)','[INFO] Attempting token refresh','[OK] New token acquired','[OK] Request succeeded with refreshed credentials'],
+  ['[WARN] Context window 98% full (196k / 200k)','[INFO] Triggering session compaction','[INFO] Summarizing oldest 50 messages \u2192 1 summary block','[OK] Context reduced to 142k tokens (71%)']
+];
+function toggleChaos(idx){
+  chaosState[idx]=!chaosState[idx];
+  document.getElementById('chaos'+idx).classList.toggle('on');
+  var log=document.getElementById('chaosLog');
+  if(chaosState[idx]){
+    var responses=chaosResponses[idx];var delay=0;
+    responses.forEach(function(r){
+      delay+=400+Math.random()*300;
+      setTimeout(function(){
+        var div=document.createElement('div');
+        var color=r.indexOf('[ERR]')===0?'var(--red)':r.indexOf('[WARN]')===0?'var(--amber)':r.indexOf('[OK]')===0?'var(--green)':'var(--dim)';
+        div.innerHTML='<span style="color:'+color+'">'+r+'</span>';
+        log.appendChild(div);log.scrollTop=log.scrollHeight;
+      },delay);
+    });
+    addScore(2);
+  }
+}
+
+// ========== SLIDE 20: SANDBOX ==========
+var sandboxResponses=[
+  {user:'What can you do?',gateway:'[route] default:session:main \u2192 Default Agent',agent:'[llm] Calling Claude Opus 4.6 (1.2k tokens)\n[llm] Response: text (no tool calls)',response:'I can read/write files, execute commands, browse the web, and much more.',fs:'session-main.jsonl +2 entries'},
+  {user:'List my files',gateway:'[route] default:session:main \u2192 Default Agent',agent:'[llm] Calling Claude Opus 4.6\n[llm] Response: tool_call \u2192 exec\n[tool] exec: ls -la /workspace (12ms)\n[llm] Second call with result\n[llm] Response: text',response:'Your files:\n- hello.py (127 bytes)\n- README.md (890 bytes)\n- src/ directory',fs:'session-main.jsonl +4 entries'},
+  {user:'Create a test file',gateway:'[route] default:session:main \u2192 Default Agent',agent:'[llm] Calling Claude Opus 4.6\n[llm] Response: tool_call \u2192 exec\n[tool] exec: echo "test" > test.txt (8ms)\n[llm] Response: text',response:'Done! Created test.txt with "test".',fs:'session-main.jsonl +4 entries\nworkspace/test.txt CREATED'}
+];
+var sbIdx=0;
+function sendSandbox(){
+  var input=document.getElementById('sbInput');var msg=input.value.trim();if(!msg)return;input.value='';
+  var r=sandboxResponses[sbIdx%sandboxResponses.length];sbIdx++;
+  var chat=document.getElementById('sbChat');
+  chat.innerHTML+='<div style="color:var(--blue);margin:4px 0"><strong>You:</strong> '+msg+'</div>';
+  setTimeout(function(){document.getElementById('sbGateway').innerHTML+='<div style="margin:4px 0;color:var(--green)">'+r.gateway+'</div>';},200);
+  var agentLines=r.agent.split('\n');var d=400;
+  agentLines.forEach(function(l){d+=300;setTimeout(function(){
+    var color=l.indexOf('[tool]')!==-1?'var(--amber)':l.indexOf('[llm]')!==-1?'var(--violet)':'var(--dim)';
+    document.getElementById('sbAgent').innerHTML+='<div style="margin:2px 0;color:'+color+'">'+l+'</div>';
+    document.getElementById('sbAgent').scrollTop=999;
+  },d);});
+  setTimeout(function(){chat.innerHTML+='<div style="color:var(--green);margin:4px 0"><strong>Agent:</strong> '+r.response+'</div>';chat.scrollTop=999;},d+400);
+  setTimeout(function(){document.getElementById('sbFS').innerHTML+='<div style="margin:4px 0;color:var(--gold)">'+r.fs+'</div>';},d+200);
+  addScore(3);
+}
+
+// ========== SLIDE 21: SPEED ROUND ==========
+var speedPool=[
+  {q:'What port does OpenClaw\'s WebSocket server run on?',opts:['3000','8080','18789','443'],ans:2,sec:'Section 2: Architecture Layers'},
+  {q:'What format are session transcripts stored in?',opts:['SQLite','JSONL','CSV','XML'],ans:1,sec:'Section 5: File-Based State'},
+  {q:'Which auth method requires zero credentials?',opts:['Token','Password','Tailscale','Loopback (127.0.0.1)'],ans:3,sec:'Section 3: Hack the Gateway'},
+  {q:'What is the primary communication protocol?',opts:['HTTP REST','gRPC','WebSocket','GraphQL'],ans:2,sec:'Section 2: WebSocket Protocol'},
+  {q:'How many API methods does the Gateway expose?',opts:['~15','~40','80+','~200'],ans:2,sec:'Section 2: API Explorer'},
+  {q:'What is Pi in OpenClaw?',opts:['The CLI interface','The embedded agent runtime','A mobile app','A monitoring dashboard'],ans:1,sec:'Section 4: LLM Loop'},
+  {q:'What language is OpenClaw built in?',opts:['Python','Rust','TypeScript','Go'],ans:2,sec:'Section 2: Architecture'},
+  {q:'What web framework does the Gateway use?',opts:['Express','Fastify','Hono.js','Koa'],ans:2,sec:'Section 2: Architecture Layers'},
+  {q:'What happens when the LLM returns a tool_call?',opts:['Queued for approval','Execute and feed result back to LLM','Sent to user','Logged and skipped'],ans:1,sec:'Section 4: LLM Loop'},
+  {q:'Which skill precedence level has highest priority?',opts:['Bundled','Plugin','Managed','Workspace'],ans:3,sec:'Section 4: Skills System'},
+  {q:'What Node.js version does OpenClaw require?',opts:['16+','18+','20+','22+'],ans:3,sec:'Section 2: Architecture'},
+  {q:'What config format does OpenClaw use?',opts:['YAML','TOML','JSON5','INI'],ans:2,sec:'Section 5: File-Based State'},
+  {q:'What is the correct first Dockerfile instruction?',opts:['WORKDIR','COPY','FROM','RUN'],ans:2,sec:'Section 6: Docker Architecture'},
+  {q:'What does a Channel plugin do?',opts:['Store messages','Normalize webhooks into standard Message format','Execute tools','Manage auth tokens'],ans:1,sec:'Section 3: Channel Normalizer'},
+  {q:'How does OpenClaw handle LLM timeouts?',opts:['Crashes','Silently drops','Retry with backoff, then fallback model','Sends error to user'],ans:2,sec:'Section 7: Chaos Console'},
+  {q:'What are the 4 core tool types?',opts:['bash, browser, files, sub-agent','bash, git, docker, kubernetes','read, write, exec, search','http, grpc, ws, ssh'],ans:0,sec:'Section 4: Tool Workbench'},
+  {q:'Where does OpenClaw store all its data?',opts:['/var/lib/openclaw','~/.openclaw/','./data/','In a PostgreSQL database'],ans:1,sec:'Section 5: File-Based State'},
+  {q:'What triggers session compaction?',opts:['Manual request only','Context window nearing limit','Every 100 messages','Hourly cron job'],ans:1,sec:'Section 7: Chaos Console'},
+  {q:'What event streams response tokens?',opts:['message.chunk','response.part','chat.delta','stream.token'],ans:2,sec:'Section 3: WebSocket Protocol'},
+  {q:'What is the dominant latency in a message lifecycle?',opts:['Webhook receipt','Channel normalization','LLM API call','Tool execution'],ans:2,sec:'Section 6: Waterfall'},
+  {q:'How does the routing engine match messages?',opts:['Random assignment','Round-robin','Channel, pattern, and user rules','First available agent'],ans:2,sec:'Section 3: Message Routing'},
+  {q:'What does SKILL.md frontmatter contain?',opts:['Just the skill name','name, description, argument-hint','JSON schema','TypeScript types'],ans:1,sec:'Section 4: Skills System'},
+  {q:'How many auth methods does the Gateway support?',opts:['2','3','5','8'],ans:2,sec:'Section 3: Hack the Gateway'},
+  {q:'What library does the Telegram channel use?',opts:['telegraf','grammy','node-telegram-bot-api','botkit'],ans:1,sec:'Section 2: Architecture Layers'},
+  {q:'What multi-agent pattern fans out to parallel workers?',opts:['Simple Delegation','Parallel Fan-Out','Chain Pipeline','Round Robin'],ans:1,sec:'Section 4: Multi-Agent'},
+  {q:'What happens to WhatsApp group messages per the routing rules?',opts:['Default Agent','Research Agent','Ignored (/dev/null)','Broadcast to all agents'],ans:2,sec:'Section 3: Message Routing'}
+];
+var speedActive=false,speedQuestions=[],speedIdx=0,speedCorrect=0,speedTimer=null,speedTimeLeft=0;
+var speedAnswers=[];
+function fisherYates(arr){var a=arr.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function startSpeed(){
+  speedQuestions=fisherYates(speedPool).slice(0,10);
+  speedIdx=0;speedCorrect=0;speedAnswers=[];speedActive=true;
+  document.getElementById('speedReview').style.display='none';
+  document.getElementById('speedReview').innerHTML='';
+  showSpeedQ();
+}
+function showSpeedQ(){
+  if(speedIdx>=10){endSpeed();return;}
+  var q=speedQuestions[speedIdx];
+  var area=document.getElementById('speedArea');
+  var html='<div class="speed-progress">Question '+(speedIdx+1)+' of 10</div>';
+  html+='<div class="speed-timer" id="speedTimerEl">15.0</div>';
+  html+='<div class="speed-q">'+q.q+'</div>';
+  q.opts.forEach(function(opt,i){
+    html+='<button class="speed-opt" onclick="answerSpeed('+i+')">'+opt+'</button>';
+  });
+  area.innerHTML=html;
+  speedTimeLeft=150;
+  clearInterval(speedTimer);
+  speedTimer=setInterval(function(){
+    speedTimeLeft--;
+    var el=document.getElementById('speedTimerEl');
+    if(!el){clearInterval(speedTimer);return;}
+    el.textContent=(speedTimeLeft/10).toFixed(1);
+    if(speedTimeLeft<=30)el.classList.add('urgent');
+    if(speedTimeLeft<=0){
+      clearInterval(speedTimer);
+      speedAnswers.push({q:speedQuestions[speedIdx],picked:-1,correct:false,timeout:true});
+      speedIdx++;showSpeedQ();
+    }
+  },100);
+}
+function answerSpeed(idx){
+  if(!speedActive)return;
+  clearInterval(speedTimer);
+  var q=speedQuestions[speedIdx];
+  var correct=idx===q.ans;
+  if(correct)speedCorrect++;
+  speedAnswers.push({q:q,picked:idx,correct:correct,timeout:false});
+  var btns=document.querySelectorAll('.speed-opt');
+  btns.forEach(function(b,i){
+    b.disabled=true;
+    if(i===q.ans)b.classList.add('correct');
+    if(i===idx&&!correct)b.classList.add('wrong');
+  });
+  document.getElementById('speedScore').textContent=speedCorrect+'/10';
+  addScore(correct?2:0);
+  setTimeout(function(){speedIdx++;showSpeedQ();},800);
+}
+function endSpeed(){
+  speedActive=false;clearInterval(speedTimer);
+  var area=document.getElementById('speedArea');
+  area.innerHTML='<div style="text-align:center;margin:20px 0"><div style="font-size:24px;font-weight:700;color:var(--gold)">'+speedCorrect+'/10</div><div style="color:var(--dim);margin-top:8px">'+
+    (speedCorrect>=8?'Outstanding recall!':speedCorrect>=5?'Solid foundation. Review below.':'Worth revisiting the course.')+
+    '</div><button class="nav-btn primary" onclick="startSpeed()" style="margin-top:16px">Retry (New Questions)</button></div>';
+  var review=document.getElementById('speedReview');review.style.display='block';
+  var html='<h3 style="margin-bottom:12px">Full Review</h3>';
+  speedAnswers.forEach(function(a,i){
+    var cls=a.correct?'ok':'no';
+    html+='<div class="speed-review-card '+cls+'">';
+    html+='<div style="font-weight:600;margin-bottom:6px">Q'+(i+1)+': '+a.q.q+'</div>';
+    a.q.opts.forEach(function(opt,j){
+      var style='';
+      if(j===a.q.ans)style='color:var(--green);font-weight:600';
+      if(j===a.picked&&!a.correct)style='color:var(--red);text-decoration:line-through';
+      html+='<div style="font-size:12px;margin:2px 0;'+style+'">'+opt+(j===a.picked&&!a.correct?' (your answer)':'')+(j===a.q.ans?' \u2713':'')+'</div>';
+    });
+    if(a.timeout)html+='<div style="font-size:11px;color:var(--amber);margin-top:4px">\u23f0 Time ran out</div>';
+    html+='<div style="font-size:11px;color:var(--dim);margin-top:4px">('+a.q.sec+')</div>';
+    html+='</div>';
+  });
+  review.innerHTML=html;
+}
+
+// ========== SLIDE 22: KNOWLEDGE QUIZ ==========
+var quizQuestions=[
+  {q:'What protocol does the Gateway primarily use for real-time communication?',opts:['HTTP REST API','WebSocket (JSON frames on port 18789)','gRPC with Protocol Buffers','GraphQL subscriptions'],ans:1,okFB:'Right! WebSocket is the primary protocol with JSON-RPC-like frames on port 18789. (Section 2: WebSocket Protocol)',noFB:'Not quite. OpenClaw uses WebSocket with JSON frames on port 18789.'},
+  {q:'How does OpenClaw store session transcripts?',opts:['PostgreSQL','Redis with snapshots','JSONL files (append-only, one JSON per line)','SQLite with FTS5'],ans:2,okFB:'Correct! JSONL files are append-only \u2014 one JSON object per line. No database needed. (Section 5: File-Based State)',noFB:'OpenClaw uses JSONL (JSON Lines) \u2014 append-only files, no database.'},
+  {q:'What happens when an agent\'s LLM response contains a tool call?',opts:['Queued for manual approval','Tool executes, result feeds back to LLM, loop continues','Sent to user for execution','Handled by a separate microservice'],ans:1,okFB:'Exactly. Execute tool, feed result back, loop until text response. This is the core agent loop. (Section 4: LLM Loop)',noFB:'Tool results are automatically fed back to the LLM in a loop.'},
+  {q:'Which auth method requires zero credentials for local connections?',opts:['Token auth with empty string','Tailscale identity','Loopback bypass (127.0.0.1 auto-approved)','Device signature with default key'],ans:2,okFB:'Right! Loopback connections from 127.0.0.1 are auto-approved with no credentials. (Section 3: Auth)',noFB:'Loopback (127.0.0.1) connections bypass auth entirely.'},
+  {q:'In the skill precedence hierarchy, which level wins?',opts:['Bundled skills','Plugin-provided','Managed (~/.openclaw/skills/)','Workspace (highest precedence)'],ans:3,okFB:'Correct! Workspace skills override all other levels. (Section 4: Skills System)',noFB:'Workspace skills have the highest precedence, overriding all others.'},
+  {q:'What does a Channel plugin do?',opts:['Normalizes webhooks into standard Message format','Stores messages in transcript','Executes tool calls','Manages auth tokens'],ans:0,okFB:'Right! Channels receive raw platform webhooks and normalize them. (Section 3: Channel Normalizer)',noFB:'Channel plugins normalize platform-specific webhooks into a standard format.'},
+  {q:'How many API methods does the Gateway expose?',opts:['~15 core methods','~40 methods','80+ methods across chat, session, agent, etc.','~200 methods'],ans:2,okFB:'Correct! 80+ methods spanning chat, session, agent, config, channel, cron, skills, system. (Section 2: API Explorer)',noFB:'The Gateway exposes 80+ API methods.'},
+  {q:'What is Pi\'s relationship to OpenClaw?',opts:['Separate service connected via API','Embedded agent runtime for LLM calls and tools','The CLI interface','The mobile companion app'],ans:1,okFB:'Right! Pi is the embedded agent runtime inside OpenClaw. (Section 4: LLM Loop)',noFB:'Pi is OpenClaw\'s embedded agent runtime.'},
+  {q:'What language is OpenClaw built in?',opts:['Python with FastAPI','Rust with Actix','TypeScript on Node.js 22+','Go with standard library'],ans:2,okFB:'Correct! TypeScript on Node.js 22+. (Section 2: Architecture)',noFB:'OpenClaw is built in TypeScript on Node.js 22+.'},
+  {q:'What happens when you toggle "LLM Timeout" in a chaos scenario?',opts:['System crashes and requires restart','Message is silently dropped','Retry with exponential backoff, then fallback to secondary model','Error logged, no recovery'],ans:2,okFB:'Right! Retry with backoff, then fall back to a secondary model like Sonnet. (Section 7: Chaos Console)',noFB:'OpenClaw retries with exponential backoff, then falls back to an alternative model.'}
+];
+var quizCorrect=0,quizAnswered=0;
+function buildQuiz(){
+  var area=document.getElementById('quizArea');var html='';
+  quizQuestions.forEach(function(q,i){
+    html+='<div class="quiz" id="kq'+i+'"><div class="quiz-q">Q'+(i+1)+': '+q.q+'</div>';
+    q.opts.forEach(function(opt,j){
+      html+='<button class="quiz-opt" onclick="answerQuiz('+i+','+j+',this)">'+opt+'</button>';
+    });
+    html+='<div class="quiz-fb" id="kq'+i+'fb"></div></div>';
+  });
+  area.innerHTML=html;
+}
+function answerQuiz(qi,oi,btn){
+  var q=quizQuestions[qi];
+  var quiz=document.getElementById('kq'+qi);
+  quiz.querySelectorAll('.quiz-opt').forEach(function(b){b.disabled=true;});
+  var correct=oi===q.ans;
+  btn.classList.add(correct?'correct':'wrong');
+  if(!correct)quiz.querySelectorAll('.quiz-opt')[q.ans].classList.add('correct');
+  var fb=document.getElementById('kq'+qi+'fb');
+  fb.textContent=correct?q.okFB:q.noFB;
+  fb.className='quiz-fb show '+(correct?'ok':'no');
+  quizAnswered++;if(correct){quizCorrect++;addScore(2);}
+  document.getElementById('quizTotal').textContent=quizCorrect+'/10 correct';
+  if(quizAnswered===10){
+    var r=document.getElementById('quizResult');r.style.display='block';
+    var pct=Math.round(quizCorrect/10*100);
+    document.getElementById('quizResultText').textContent=quizCorrect+'/10 ('+pct+'%)';
+    document.getElementById('quizResultMsg').textContent=quizCorrect>=8?'Outstanding. You understand the full architecture.':quizCorrect>=5?'Solid foundation. Review the sections you missed.':'Worth revisiting the earlier sections.';
+  }
+}
+
+// ========== SLIDE 23: CERTIFICATE ==========
+var certGenerated=false;
+function generateCert(){
+  var name=document.getElementById('certName').value.trim();
+  if(!name){document.getElementById('certName').style.borderColor='var(--red)';return;}
+  document.getElementById('certWrap').style.display='flex';
+  document.getElementById('certDL').style.display='inline-block';
+  document.getElementById('certNameDisplay').textContent=name;
+  document.getElementById('certExplore').textContent=score+'/'+maxScore;
+  document.getElementById('certSpeed').textContent=speedCorrect+'/10';
+  document.getElementById('certQuiz').textContent=quizCorrect+'/10';
+  document.getElementById('certDate').textContent=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  if(!certGenerated){certGenerated=true;launchConfetti();initCertTilt();}
+}
+
+// === CONFETTI ===
+function launchConfetti(){
+  var canvas=document.getElementById('confettiCanvas');
+  canvas.style.display='block';canvas.width=window.innerWidth;canvas.height=window.innerHeight;
+  var ctx=canvas.getContext('2d');
+  var pieces=[];
+  var colors=['#00e87b','#8b5cf6','#38bdf8','#fbbf24','#f59e0b','#ef4444'];
+  for(var i=0;i<150;i++){
+    pieces.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height-canvas.height,w:8+Math.random()*6,h:4+Math.random()*4,color:colors[Math.floor(Math.random()*colors.length)],vx:(Math.random()-0.5)*4,vy:2+Math.random()*4,rot:Math.random()*360,rotV:(Math.random()-0.5)*10,opacity:1});
+  }
+  var startTime=Date.now();
+  function draw(){
+    var elapsed=Date.now()-startTime;
+    if(elapsed>4000){ctx.clearRect(0,0,canvas.width,canvas.height);canvas.style.display='none';return;}
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    pieces.forEach(function(p){
+      p.x+=p.vx;p.y+=p.vy;p.vy+=0.1;p.rot+=p.rotV;
+      if(elapsed>2500)p.opacity=Math.max(0,1-(elapsed-2500)/1500);
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot*Math.PI/180);
+      ctx.globalAlpha=p.opacity;ctx.fillStyle=p.color;
+      ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
+      ctx.restore();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// === CERT 3D TILT ===
+function initCertTilt(){
+  var card=document.getElementById('certCard');
+  var holo=document.getElementById('certHolo');
+  var rafId=null,mx=0,my=0;
+  document.addEventListener('mousemove',function(e){
+    mx=e.clientX;my=e.clientY;
+    if(!rafId)rafId=requestAnimationFrame(tiltFrame);
+  });
+  function tiltFrame(){
+    rafId=null;
+    var rect=card.getBoundingClientRect();
+    var cx=rect.left+rect.width/2;
+    var cy=rect.top+rect.height/2;
+    var dx=(mx-cx)/rect.width;
+    var dy=(my-cy)/rect.height;
+    card.style.transform='rotateY('+(dx*12)+'deg) rotateX('+(-dy*12)+'deg)';
+    holo.style.backgroundPosition=(50+dx*30)+'% '+(50+dy*30)+'%';
+  }
+}
+
+// === CERT PNG DOWNLOAD ===
+function downloadCert(){
+  var canvas=document.createElement('canvas');canvas.width=1200;canvas.height=760;
+  var ctx=canvas.getContext('2d');
+  // Background
+  var bg=ctx.createLinearGradient(0,0,1200,760);
+  bg.addColorStop(0,'#060a12');bg.addColorStop(0.5,'#0c1220');bg.addColorStop(1,'#060a12');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,1200,760);
+  // Border
+  ctx.strokeStyle='#00e87b';ctx.lineWidth=3;
+  ctx.strokeRect(20,20,1160,720);
+  ctx.strokeStyle='#8b5cf6';ctx.lineWidth=1;
+  ctx.strokeRect(30,30,1140,700);
+  // Title
+  ctx.fillStyle='#5a6b82';ctx.font='14px sans-serif';ctx.textAlign='center';
+  ctx.fillText('CERTIFICATE OF MASTERY',600,100);
+  ctx.fillStyle='#5a6b82';ctx.font='12px sans-serif';
+  ctx.fillText('OpenClaw Architecture \u2014 Interactive Crash Course',600,125);
+  // Name
+  var nameText=document.getElementById('certName').value||'Learner';
+  ctx.fillStyle='#00e87b';ctx.font='bold 42px sans-serif';
+  ctx.fillText(nameText,600,220);
+  // Description
+  ctx.fillStyle='#d8e0ef';ctx.font='16px sans-serif';
+  ctx.fillText('has demonstrated deep understanding of the OpenClaw architecture',600,280);
+  // Scores
+  ctx.fillStyle='#fbbf24';ctx.font='bold 32px monospace';
+  ctx.fillText(score+'/'+maxScore,300,380);
+  ctx.fillText(speedCorrect+'/10',600,380);
+  ctx.fillText(quizCorrect+'/10',900,380);
+  ctx.fillStyle='#5a6b82';ctx.font='12px sans-serif';
+  ctx.fillText('Explored',300,410);
+  ctx.fillText('Speed Round',600,410);
+  ctx.fillText('Assessment',900,410);
+  // Date
+  ctx.fillStyle='#5a6b82';ctx.font='12px sans-serif';
+  ctx.fillText(new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}),600,500);
+  // Branding
+  ctx.fillStyle='#1e2d45';ctx.font='10px sans-serif';
+  ctx.fillText('Built with github.com/mikedyan/interactive-course',600,700);
+  // Download
+  var link=document.createElement('a');
+  link.download='OpenClaw-Architecture-Certificate.png';
+  link.href=canvas.toDataURL('image/png');
+  link.click();
+}
+
+// ========== INIT ==========
+buildNav();
+goTo(0);
+document.getElementById('fileTree').innerHTML=renderTree(fileTreeData);
+updateSkillPreview();
+renderPlayerEntry(0);
+setTimeout(startFrames,2000);
+buildAPIList();
+renderNormTab();
+loadMA(0);
+buildQuiz();
+</script>
+</body>
+</html>
